@@ -56,9 +56,13 @@ export default function DashboardLayout({
           <div className="flex h-16 items-center border-b pl-8">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 text-lg font-semibold hover:text-primary transition-colors"
+              className="flex items-center text-lg font-semibold hover:text-primary transition-colors"
             >
-              <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg" />
+              <img
+                src="/logo.svg"
+                alt="Logo"
+                className="w-16 h-16 rounded-lg"
+              />
               RAG Web UI
             </Link>
           </div>
