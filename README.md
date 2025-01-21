@@ -1,148 +1,326 @@
-# RAG Web UI
+<div align="center">
+  <img src="./docs/images/github-cover-new.png" alt="RAG Web UI Demo">
+  <br />
+  <p>
+    <strong>Knowledge Base Management Based on RAG (Retrieval-Augmented Generation)</strong>
+  </p>
 
-一个基于 RAG (Retrieval-Augmented Generation) 的 Web UI 应用，用于实践 RAG 相关知识。
+  <p>
+    <a href="https://github.com/yourusername/rag-web-ui/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yourusername/rag-web-ui" alt="License"></a>
+    <a href="#"><img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Python"></a>
+    <a href="#"><img src="https://img.shields.io/badge/node-%3E%3D18-green.svg" alt="Node"></a>
+    <a href="#"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  </p>
 
-## 项目特点
+  <p>
+    <a href="#features">Features</a> •
+    <a href="#quick-start">Quick Start</a> •
+    <a href="#deployment-guide">Deployment</a> •
+    <a href="#architecture">Architecture</a> •
+    <a href="#development">Development</a> •
+    <a href="#contributing">Contributing</a>
+  </p>
 
-- 前后端分离架构
-- 完整的用户认证系统
-- 知识库和文档管理
-- 基于 RAG 的智能对话
-- 文件存储使用 MinIO
-- 支持多种文档格式
+  <h4>
+    <span>English</span> |
+    <a href="README.zh-CN.md">简体中文</a>
+  </h4>
+</div>
 
-## 技术栈
+## 📖 Introduction
 
-### 后端
-- Python FastAPI
-- MySQL 数据库
-- ChromaDB 向量数据库
-- MinIO 对象存储
-- Langchain 框架
-- JWT 认证
+RAG Web UI is an intelligent dialogue system based on RAG (Retrieval-Augmented Generation) technology. It helps enterprises and individuals build intelligent Q&A systems based on their own knowledge bases. By combining document retrieval and large language models, it delivers accurate and reliable knowledge-based question-answering services.
 
-### 前端
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- Shadcn/UI 组件库
-- Vercel AI SDK
+## ✨ Features
+- 📚 **Intelligent Document Management**
+  - Support for multiple document formats (PDF, DOCX, Markdown, Text)
+  - Automatic document chunking and vectorization
+  - Support for async document processing and incremental updates
 
-## 功能模块
+- 🤖 **Advanced Dialogue Engine**
+  - Precise retrieval and generation based on RAG
+  - Support for multi-turn contextual dialogue
+  - Support for reference citations in conversations
 
-### 用户系统
-- 注册
-- 登录
-- 登出
+- 🎯 **Robust Architecture**
+  - Frontend-backend separation design
+  - Distributed file storage
+  - High-performance vector database
 
-### 知识库管理
-- 创建知识库
-- 上传文档（支持 PDF、DOCX、Markdown、Text）
-- 文档管理
 
-### 聊天系统
-- 创建对话
-- 选择知识库
-- 智能对话
-- 对话历史
+## 🖼️ Screenshots
 
-## 目录结构
+<div align="center">
+  <img src="./docs/images/screenshot1.png" alt="Knowledge Base Management" width="800">
+  <p><em>Knowledge Base Management Dashboard</em></p>
+  
+  <img src="./docs/images/screenshot2.png" alt="Chat Interface" width="800">
+  <p><em>Document Processing Dashboard</em></p>
+  
+  <img src="./docs/images/screenshot3.png" alt="Document Processing" width="800">
+  <p><em>Document List</em></p>
+  
+  <img src="./docs/images/screenshot4.png" alt="System Settings" width="800">
+  <p><em>Intelligent Chat Interface with References</em></p>
+  
+  <img src="./docs/images/screenshot5.png" alt="Analytics Dashboard" width="800">
+  <p><em>API Key Management</em></p>
+</div>
 
+ ##  Project Flowchart
+ 
+```mermaid
+graph TB
+    %% Role Definitions
+    client["Caller/User"]
+    open_api["Open API"]
+    
+    subgraph import_process["Document Ingestion Process"]
+        direction TB
+        %% File Storage and Document Processing Flow
+        docs["Document Input<br/>(PDF/MD/TXT/DOCX)"]
+        job_id["Return Job ID"]
+        
+        nfs["NFS"]
+
+        subgraph async_process["Asynchronous Document Processing"]
+            direction TB
+            preprocess["Document Preprocessing<br/>(Text Extraction/Cleaning)"]
+            split["Text Splitting<br/>(Segmentation/Overlap)"]
+            
+            subgraph embedding_process["Embedding Service"]
+                direction LR
+                embedding_api["Embedding API"] --> embedding_server["Embedding Server"]
+            end
+            
+            store[(Vector Database)]
+            
+            %% Internal Flow of Asynchronous Processing
+            preprocess --> split
+            split --> embedding_api
+            embedding_server --> store
+        end
+        
+        subgraph job_query["Job Status Query"]
+            direction TB
+            job_status["Job Status<br/>(Processing/Completed/Failed)"]
+        end
+    end
+    
+    %% Query Service Flow  
+    subgraph query_process["Query Service"]
+        direction LR
+        user_history["User History"] --> query["User Query<br/>(Based on User History)"]
+        query --> query_embed["Query Embedding"]
+        query_embed --> retrieve["Vector Retrieval"]
+        retrieve --> rerank["Re-ranking<br/>(Cross-Encoder)"]
+        rerank --> context["Context Assembly"]
+        context --> llm["LLM Generation"]
+        llm --> response["Final Response"]
+        query -.-> rerank
+    end
+    
+    %% Main Flow Connections
+    client --> |"1.Upload Document"| docs
+    docs --> |"2.Generate"| job_id
+    docs --> |"3a.Trigger"| async_process
+    job_id --> |"3b.Return"| client
+    docs --> nfs
+    nfs --> preprocess
+
+    %% Open API Retrieval Flow
+    open_api --> |"Retrieve Context"| retrieval_service["Retrieval Service"]
+    retrieval_service --> |"Access"| store
+    retrieval_service --> |"Return Context"| open_api
+
+    %% Status Query Flow
+    client --> |"4.Poll"| job_status
+    job_status --> |"5.Return Progress"| client
+    
+    %% Database connects to Query Service
+    store --> retrieve
+
+    %% Style Definitions (Adjusted to match GitHub theme colors)
+    classDef process fill:#d1ecf1,stroke:#0077b6,stroke-width:1px
+    classDef database fill:#e2eafc,stroke:#003566,stroke-width:1px
+    classDef input fill:#caf0f8,stroke:#0077b6,stroke-width:1px
+    classDef output fill:#ffc8dd,stroke:#d00000,stroke-width:1px
+    classDef rerank fill:#cdb4db,stroke:#5a189a,stroke-width:1px
+    classDef async fill:#f8edeb,stroke:#7f5539,stroke-width:1px,stroke-dasharray: 5 5
+    classDef actor fill:#fefae0,stroke:#606c38,stroke-width:1px
+    classDef jobQuery fill:#ffedd8,stroke:#ca6702,stroke-width:1px
+    classDef queryProcess fill:#d8f3dc,stroke:#40916c,stroke-width:1px
+    classDef embeddingService fill:#ffe5d9,stroke:#9d0208,stroke-width:1px
+    classDef importProcess fill:#e5e5e5,stroke:#495057,stroke-width:1px
+
+    %% Applying classes to nodes
+    class docs,query,retrieval_service input
+    class preprocess,split,query_embed,retrieve,context,llm process
+    class store,nfs database
+    class response,job_id,job_status output
+    class rerank rerank
+    class async_process async
+    class client,open_api actor
+    class job_query jobQuery
+    style query_process fill:#d8f3dc,stroke:#40916c,stroke-width:1px
+    style embedding_process fill:#ffe5d9,stroke:#9d0208,stroke-width:1px
+    style import_process fill:#e5e5e5,stroke:#495057,stroke-width:1px
+    style job_query fill:#ffedd8,stroke:#ca6702,stroke-width:1px
 ```
-.
-├── backend/                 # 后端代码
-│   ├── alembic/            # 数据库迁移
-│   ├── app/
-│   │   ├── api/           # API 路由
-│   │   ├── core/          # 核心配置
-│   │   ├── db/           # 数据库配置
-│   │   ├── models/       # 数据模型
-│   │   ├── schemas/      # Pydantic 模型
-│   │   └── services/     # 业务逻辑
-│   └── requirements.txt   # Python 依赖
-├── frontend/               # 前端代码
-│   ├── src/
-│   │   ├── app/          # Next.js 页面
-│   │   ├── components/   # React 组件
-│   │   ├── lib/         # 工具函数
-│   │   └── styles/      # 样式文件
-│   └── package.json      # Node.js 依赖
-└── docker-compose.yml     # Docker 配置
-```
 
-## 数据模型
+## 🚀 Quick Start
 
-- 用户表 (users)
-- 知识库表 (knowledge_bases)
-- 文档表 (documents)
-- 聊天表 (chats)
-- 消息表 (messages)
-- 聊天知识库关联表 (chat_knowledge_bases)
+### Prerequisites
 
-## 部署说明
+- Docker & Docker Compose v2.0+
+- Node.js 18+
+- Python 3.9+
+- 8GB+ RAM
 
-### 环境要求
-- Docker
-- Docker Compose
+### Installation
 
-### 配置文件
-1. 创建 `.env` 文件：
+1. Clone the repository
 ```bash
-cp .env.example .env
+git clone https://github.com/rag-web-ui/rag-web-ui.git
+cd rag-web-ui
 ```
 
-2. 配置必要的环境变量：
-- OPENAI_API_KEY
-- SECRET_KEY
-- 其他可选配置
-
-### 启动服务
-
-1. 使用 Docker Compose（推荐）：
+2. Configure environment variables
 ```bash
-# 首次启动或重建
-docker-compose up --build
-
-# 后续启动
-docker-compose up
-
-# 停止服务
-docker-compose down
+cp backend/.env.example backend/.env
+# Edit .env file with necessary configurations
 ```
 
-2. 开发模式：
+3. Start services
 ```bash
-# 后端
+docker-compose up -d
+```
+
+### Verification
+
+Access the following URLs after service startup:
+
+- 🌐 Frontend UI: http://localhost:3000
+- 📚 API Documentation: http://localhost:8000/docs
+- 💾 MinIO Console: http://localhost:9001
+
+## 🏗️ Architecture
+
+### Backend Stack
+
+- 🐍 **Python FastAPI**: High-performance async web framework
+- 🗄️ **MySQL + ChromaDB**: Relational + Vector databases
+- 📦 **MinIO**: Distributed object storage
+- 🔗 **Langchain**: LLM application framework
+- 🔒 **JWT + OAuth2**: Authentication
+
+### Frontend Stack
+
+- ⚛️ **Next.js 14**: React framework
+- 📘 **TypeScript**: Type safety
+- 🎨 **Tailwind CSS**: Utility-first CSS
+- 🎯 **Shadcn/UI**: High-quality components
+- 🤖 **Vercel AI SDK**: AI integration
+
+## 📈 Performance Optimization
+
+The system is optimized in the following aspects:
+
+- ⚡️ Incremental document processing and async chunking
+- 🔄 Streaming responses and real-time feedback
+- 📑 Vector database performance tuning
+- 🎯 Distributed task processing
+
+## 📖 Development Guide
+
+### Backend Development
+
+```bash
 cd backend
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
 
-# 前端
+### Frontend Development
+
+```bash
 cd frontend
 pnpm install
 pnpm dev
 ```
 
-### 访问服务
-- 前端界面：http://localhost:3000
-- 后端 API：http://localhost:8000
-- MinIO 控制台：http://localhost:9001
-  - 用户名：minioadmin
-  - 密码：minioadmin
+### Database Migration
 
-## 开发说明
-
-### 后端开发
-- API 文档：http://localhost:8000/docs
-- 数据库迁移：
 ```bash
 cd backend
 alembic revision --autogenerate -m "migration message"
 alembic upgrade head
 ```
 
-### 前端开发
-- 组件开发遵循 Shadcn/UI 规范
-- 使用 Tailwind CSS 进行样式开发
-- 状态管理使用 React Hooks
+## 🔧 Configuration
 
+### Core Configuration
+
+| Parameter                   | Description                | Default   | Required |
+| --------------------------- | -------------------------- | --------- | -------- |
+| MYSQL_SERVER                | MySQL Server Address       | localhost | ✅        |
+| MYSQL_USER                  | MySQL Username             | postgres  | ✅        |
+| MYSQL_PASSWORD              | MySQL Password             | postgres  | ✅        |
+| MYSQL_DATABASE              | MySQL Database Name        | ragwebui  | ✅        |
+| SECRET_KEY                  | JWT Secret Key             | -         | ✅        |
+| ACCESS_TOKEN_EXPIRE_MINUTES | JWT Token Expiry (minutes) | 30        | ✅        |
+| CHROMA_DB_HOST              | ChromaDB Server Address    | localhost | ✅        |
+| CHROMA_DB_PORT              | ChromaDB Port              | 8000      | ✅        |
+| OPENAI_API_KEY              | OpenAI API Key             | -         | ✅        |
+| OPENAI_API_BASE             | OpenAI API Proxy URL       | -         | ❌        |
+
+## 🤝 Contributing
+
+We welcome community contributions!
+
+### Contribution Process
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Create a Pull Request
+
+### Development Guidelines
+
+- Follow [Python PEP 8](https://pep8.org/) coding standards
+- Follow [Conventional Commits](https://www.conventionalcommits.org/)
+
+
+### 🚧 Roadmap
+
+- [x] Knowledge Base API Integration
+- [ ] Workflow By Natural Language
+- [ ] Multi-path Retrieval
+- [ ] Support Multiple Models
+- [ ] Support Multiple Vector Databases
+
+## 📄 License
+
+This project is licensed under the [Apache-2.0 License](LICENSE)
+
+## Note
+
+This project is for learning and sharing RAG knowledge only. Please do not use it for commercial purposes. It is not ready for production use and is still under active development.
+
+## 🙏 Acknowledgments
+
+Thanks to these open source projects:
+
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Langchain](https://python.langchain.com/)
+- [Next.js](https://nextjs.org/)
+- [ChromaDB](https://www.trychroma.com/)
+
+---
+
+<div align="center">
+  If this project helps you, please consider giving it a ⭐️
+</div>

@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "ai/react";
 import { Send } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
+import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
+import { Answer } from "@/components/chat/answer";
 
 interface Message {
   id: string;
   role: "assistant" | "user" | "system" | "data";
   content: string;
+  citations?: Citation[];
 }
 
 interface ChatMessage {
   id: number;
   content: string;
-  is_bot: boolean;
+  role: "assistant" | "user";
   created_at: string;
 }
 
@@ -25,12 +29,28 @@ interface Chat {
   messages: ChatMessage[];
 }
 
+interface Citation {
+  id: number;
+  text: string;
+  metadata: Record<string, any>;
+}
+
+// Extend the default useChat message type
+declare module "ai/react" {
+  interface Message {
+    citations?: Citation[];
+  }
+}
+
 export default function ChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const {
     messages,
+    data,
     input,
     handleInputChange,
     handleSubmit,
@@ -39,50 +59,93 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   } = useChat({
     api: `http://localhost:8000/api/chat/${params.id}/messages`,
     headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
+      Authorization: `Bearer ${
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("token")
+          : ""
+      }`,
     },
-    initialMessages: [],
   });
 
-  console.log(JSON.stringify(messages));
-  console.log(input);
-  console.log(isLoading);
+  useEffect(() => {
+    if (isInitialLoad) {
+      fetchChat();
+      setIsInitialLoad(false);
+    }
+  }, [isInitialLoad]);
 
   useEffect(() => {
-    fetchChat();
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!isInitialLoad) {
+      scrollToBottom();
+    }
+  }, [messages, isInitialLoad]);
 
   const fetchChat = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `http://localhost:8000/api/chat/${params.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const data: Chat = await api.get(
+        `http://localhost:8000/api/chat/${params.id}`
       );
+      const formattedMessages = data.messages.map((msg) => {
+        if (msg.role !== "assistant" || !msg.content)
+          return {
+            id: msg.id.toString(),
+            role: msg.role,
+            content: msg.content,
+          };
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch chat");
-      }
+        try {
+          if (!msg.content.includes("__LLM_RESPONSE__")) {
+            return {
+              id: msg.id.toString(),
+              role: msg.role,
+              content: msg.content,
+            };
+          }
 
-      const data: Chat = await response.json();
-      // Convert existing messages to the format expected by useChat
-      const formattedMessages = data.messages.map((msg) => ({
-        id: msg.id.toString(),
-        role: msg.is_bot ? ("assistant" as const) : ("user" as const),
-        content: msg.content,
-      }));
-      // Set initial messages using setMessages instead of push
+          const [base64Part, responseText] =
+            msg.content.split("__LLM_RESPONSE__");
+
+          const contextData = base64Part
+            ? (JSON.parse(atob(base64Part.trim())) as {
+                context: Array<{
+                  page_content: string;
+                  metadata: Record<string, any>;
+                }>;
+              })
+            : null;
+
+          const citations: Citation[] =
+            contextData?.context.map((citation, index) => ({
+              id: index + 1,
+              text: citation.page_content,
+              metadata: citation.metadata,
+            })) || [];
+
+          return {
+            id: msg.id.toString(),
+            role: msg.role,
+            content: responseText || "",
+            citations,
+          };
+        } catch (e) {
+          console.error("Failed to process message:", e);
+          return {
+            id: msg.id.toString(),
+            role: msg.role,
+            content: msg.content,
+          };
+        }
+      });
       setMessages(formattedMessages);
     } catch (error) {
       console.error("Failed to fetch chat:", error);
+      if (error instanceof ApiError) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       router.push("/dashboard/chat");
     }
   };
@@ -91,34 +154,123 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const processMessageContent = (message: Message): Message => {
+    if (message.role !== "assistant" || !message.content) return message;
+
+    try {
+      if (!message.content.includes("__LLM_RESPONSE__")) {
+        return message;
+      }
+
+      const [base64Part, responseText] =
+        message.content.split("__LLM_RESPONSE__");
+
+      const contextData = base64Part
+        ? (JSON.parse(atob(base64Part.trim())) as {
+            context: Array<{
+              page_content: string;
+              metadata: Record<string, any>;
+            }>;
+          })
+        : null;
+
+      const citations: Citation[] =
+        contextData?.context.map((citation, index) => ({
+          id: index + 1,
+          text: citation.page_content,
+          metadata: citation.metadata,
+        })) || [];
+
+      return {
+        ...message,
+        content: responseText || "",
+        citations,
+      };
+    } catch (e) {
+      console.error("Failed to process message:", e);
+      return message;
+    }
+  };
+
+  const markdownParse = (text: string) => {
+    return text
+      .replace(/\[\[([cC])itation/g, "[citation")
+      .replace(/[cC]itation:(\d+)]]/g, "citation:$1]")
+      .replace(/\[\[([cC]itation:\d+)]](?!])/g, `[$1]`)
+      .replace(/\[[cC]itation:(\d+)]/g, "[citation]($1)");
+  };
+
+  const processedMessages = useMemo(() => {
+    return messages.map((message) => {
+      if (message.role !== "assistant" || !message.content) return message;
+
+      try {
+        if (!message.content.includes("__LLM_RESPONSE__")) {
+          return {
+            ...message,
+            content: markdownParse(message.content),
+          };
+        }
+
+        const [base64Part, responseText] =
+          message.content.split("__LLM_RESPONSE__");
+
+        const contextData = base64Part
+          ? (JSON.parse(atob(base64Part.trim())) as {
+              context: Array<{
+                page_content: string;
+                metadata: Record<string, any>;
+              }>;
+            })
+          : null;
+
+        const citations: Citation[] =
+          contextData?.context.map((citation, index) => ({
+            id: index + 1,
+            text: citation.page_content,
+            metadata: citation.metadata,
+          })) || [];
+
+        return {
+          ...message,
+          content: markdownParse(responseText || ""),
+          citations,
+        };
+      } catch (e) {
+        console.error("Failed to process message:", e);
+        return message;
+      }
+    });
+  }, [messages]);
+
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-2rem)]">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.role === "assistant" ? "justify-start" : "justify-end"
-              }`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === "assistant"
-                    ? "bg-accent text-accent-foreground"
-                    : "bg-primary text-primary-foreground"
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+      <div className="flex flex-col h-[calc(100vh-5rem)] relative">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-[80px]">
+          {processedMessages.map((message) =>
+            message.role === "assistant" ? (
+              <div key={message.id} className="flex justify-start">
+                <div className="max-w-[80%] rounded-lg px-4 py-2 bg-accent text-accent-foreground">
+                  <Answer
+                    key={message.id}
+                    markdown={message.content}
+                    citations={message.citations}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={message.id} className="flex justify-end">
+                <div className="max-w-[80%] rounded-lg px-4 py-2 bg-primary text-primary-foreground">
+                  {message.content}
+                </div>
+              </div>
+            )
+          )}
           <div ref={messagesEndRef} />
         </div>
-
         <form
           onSubmit={handleSubmit}
-          className="border-t p-4 flex items-center space-x-4"
+          className="border-t p-4 flex items-center space-x-4 bg-background absolute bottom-0 left-0 right-0"
         >
           <input
             value={input}

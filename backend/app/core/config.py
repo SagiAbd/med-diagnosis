@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 import os
 from dotenv import load_dotenv
 
@@ -9,6 +9,14 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "RAG Web UI"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api"
+    
+    # CORS settings
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ]
     
     # MySQL settings
     MYSQL_SERVER: str = os.getenv("MYSQL_SERVER", "localhost")
@@ -26,7 +34,7 @@ class Settings(BaseSettings):
     # JWT settings
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
 
     # Vector DB settings
     CHROMA_DB_HOST: str = os.getenv("CHROMA_DB_HOST", "localhost")

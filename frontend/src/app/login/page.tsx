@@ -3,103 +3,130 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { api, ApiError } from "@/lib/api";
+
+interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username");
     const password = formData.get("password");
 
     try {
-      const response = await fetch("http://localhost:8000/api/auth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          username: username as string,
-          password: password as string,
-        }),
-      });
+      const formUrlEncoded = new URLSearchParams();
+      formUrlEncoded.append("username", username as string);
+      formUrlEncoded.append("password", password as string);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || "Login failed");
-      }
+      const data = await api.post(
+        "http://localhost:8000/api/auth/token",
+        formUrlEncoded,
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
 
-      const data = await response.json();
       localStorage.setItem("token", data.access_token);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Login failed");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight">
-            Sign in to your account
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="-space-y-px rounded-md shadow-sm">
-            <div>
-              <label htmlFor="username" className="sr-only">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="relative block w-full rounded-t-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-primary"
-                placeholder="Username"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="relative block w-full rounded-b-md border-0 py-1.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-primary"
-                placeholder="Password"
-              />
-            </div>
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-lg shadow-md p-8 space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome To RAG Web UI
+            </h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Please sign in to continue
+            </p>
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          )}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Username
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  disabled={loading}
+                  className="mt-1 block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your username"
+                />
+              </div>
 
-          <div>
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  disabled={loading}
+                  className="mt-1 block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="group relative flex w-full justify-center rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign in
+              {loading ? "Signing in..." : "Sign in"}
             </button>
-          </div>
-        </form>
+          </form>
 
-        <div className="text-sm text-center">
-          <Link
-            href="/register"
-            className="font-medium text-primary hover:text-primary/90"
-          >
-            Don't have an account? Sign up
-          </Link>
+          <div className="text-center">
+            <Link
+              href="/register"
+              className="text-sm font-medium text-gray-600 hover:text-gray-500"
+            >
+              Don't have an account? Create one now
+            </Link>
+          </div>
         </div>
       </div>
     </main>

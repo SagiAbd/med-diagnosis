@@ -10,7 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -29,6 +28,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+chroma_db/
 
 # Node/Next.js
 node_modules/
