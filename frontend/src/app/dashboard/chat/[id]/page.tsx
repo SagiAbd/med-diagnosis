@@ -57,7 +57,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     isLoading,
     setMessages,
   } = useChat({
-    api: `http://localhost:8000/api/chat/${params.id}/messages`,
+    api: `/api/chat/${params.id}/messages`,
     headers: {
       Authorization: `Bearer ${
         typeof window !== "undefined"
@@ -82,9 +82,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
   const fetchChat = async () => {
     try {
-      const data: Chat = await api.get(
-        `http://localhost:8000/api/chat/${params.id}`
-      );
+      const data: Chat = await api.get(`/api/chat/${params.id}`);
       const formattedMessages = data.messages.map((msg) => {
         if (msg.role !== "assistant" || !msg.content)
           return {

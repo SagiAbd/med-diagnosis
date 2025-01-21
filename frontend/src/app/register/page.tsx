@@ -88,7 +88,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await api.post("http://localhost:8000/api/auth/register", {
+      await api.post("/api/auth/register", {
         username,
         email,
         password,

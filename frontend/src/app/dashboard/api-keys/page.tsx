@@ -62,7 +62,7 @@ export default function APIKeysPage() {
   // 获取 API Keys 列表
   const fetchAPIKeys = async () => {
     try {
-      const data = await api.get("http://localhost:8000/api/api-keys");
+      const data = await api.get("/api/api-keys");
       setApiKeys(data);
     } catch (error) {
       toast({
@@ -92,7 +92,7 @@ export default function APIKeysPage() {
 
     setIsCreating(true);
     try {
-      const data = await api.post("http://localhost:8000/api/api-keys", {
+      const data = await api.post("/api/api-keys", {
         name: newKeyName,
         is_active: true,
       });
@@ -118,9 +118,7 @@ export default function APIKeysPage() {
   // 删除 API Key
   const deleteAPIKey = async (id: number) => {
     try {
-      const response = await api.delete(
-        `http://localhost:8000/api/api-keys/${id}`
-      );
+      const response = await api.delete(`/api/api-keys/${id}`);
 
       if (!response.ok) throw new Error("Failed to delete API key");
 
@@ -141,12 +139,9 @@ export default function APIKeysPage() {
   // 更新 API Key 状态
   const toggleAPIKeyStatus = async (id: number, currentStatus: boolean) => {
     try {
-      const response = await api.put(
-        `http://localhost:8000/api/api-keys/${id}`,
-        {
-          is_active: !currentStatus,
-        }
-      );
+      const response = await api.put(`/api/api-keys/${id}`, {
+        is_active: !currentStatus,
+      });
 
       setApiKeys(
         apiKeys.map((key) =>

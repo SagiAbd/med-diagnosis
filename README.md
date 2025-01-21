@@ -201,7 +201,7 @@ docker-compose up -d
 Access the following URLs after service startup:
 
 - 🌐 Frontend UI: http://localhost:3000
-- 📚 API Documentation: http://localhost:8000/docs
+- 📚 API Documentation: /docs
 - 💾 MinIO Console: http://localhost:9001
 
 ## 🏗️ Architecture
@@ -275,6 +275,7 @@ alembic upgrade head
 | CHROMA_DB_PORT              | ChromaDB Port              | 8000      | ✅        |
 | OPENAI_API_KEY              | OpenAI API Key             | -         | ✅        |
 | OPENAI_API_BASE             | OpenAI API Proxy URL       | -         | ❌        |
+| NEXT_PUBLIC_API_URL         | Next.js API URL            | -         | ❌        |
 
 ## 🤝 Contributing
 

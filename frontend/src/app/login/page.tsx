@@ -29,15 +29,11 @@ export default function LoginPage() {
       formUrlEncoded.append("username", username as string);
       formUrlEncoded.append("password", password as string);
 
-      const data = await api.post(
-        "http://localhost:8000/api/auth/token",
-        formUrlEncoded,
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        }
-      );
+      const data = await api.post("/api/auth/token", formUrlEncoded, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
 
       localStorage.setItem("token", data.access_token);
       router.push("/dashboard");

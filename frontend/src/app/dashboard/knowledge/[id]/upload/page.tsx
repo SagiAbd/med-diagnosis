@@ -95,7 +95,7 @@ export default function UploadPage({ params }: { params: { id: string } }) {
 
     try {
       const result: UploadResult = await api.post(
-        `http://localhost:8000/api/knowledge-base/${params.id}/documents/upload`,
+        `/api/knowledge-base/${params.id}/documents/upload`,
         formData
       );
 
@@ -146,7 +146,7 @@ export default function UploadPage({ params }: { params: { id: string } }) {
       }));
 
       const response = await api.post(
-        `http://localhost:8000/api/knowledge-base/${params.id}/documents/process`,
+        `/api/knowledge-base/${params.id}/documents/process`,
         uploadResults
       );
 
@@ -184,7 +184,7 @@ export default function UploadPage({ params }: { params: { id: string } }) {
     try {
       const taskIds = processingTasks.map((t) => t.task_id).join(",");
       const status: Record<string, TaskStatus> = await api.get(
-        `http://localhost:8000/api/knowledge-base/${params.id}/documents/tasks?task_ids=${taskIds}`
+        `/api/knowledge-base/${params.id}/documents/tasks?task_ids=${taskIds}`
       );
 
       let allCompleted = true;
