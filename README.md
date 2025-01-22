@@ -65,6 +65,9 @@ RAG Web UI is an intelligent dialogue system based on RAG (Retrieval-Augmented G
   
   <img src="./docs/images/screenshot5.png" alt="Analytics Dashboard" width="800">
   <p><em>API Key Management</em></p>
+
+  <img src="./docs/images/screenshot6.png" alt="Analytics Dashboard" width="800">
+  <p><em>API Reference</em></p>
 </div>
 
  ##  Project Flowchart

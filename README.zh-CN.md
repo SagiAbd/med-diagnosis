@@ -67,6 +67,9 @@ RAG Web UI 是一个基于 RAG (Retrieval-Augmented Generation) 技术的智能�
   
   <img src="./docs/images/screenshot5.png" alt="Analytics Dashboard" width="800">
   <p><em>API Key 管理</em></p>
+
+  <img src="./docs/images/screenshot6.png" alt="Analytics Dashboard" width="800">
+  <p><em>API 参考</em></p>
 </div>
 
  
