@@ -203,7 +203,7 @@ docker-compose up -d
 Access the following URLs after service startup:
 
 - 🌐 Frontend UI: http://localhost:3000
-- 📚 API Documentation: /docs
+- 📚 API Documentation: http://localhost:8000/redoc
 - 💾 MinIO Console: http://localhost:9001
 
 ## 🏗️ Architecture
@@ -265,26 +265,26 @@ alembic upgrade head
 
 ### Core Configuration
 
-| Parameter                   | Description                       | Default               | Required |
-| --------------------------- | --------------------------------- | --------------------- | -------- |
-| MYSQL_SERVER                | MySQL Server Address              | localhost             | ✅        |
-| MYSQL_USER                  | MySQL Username                    | postgres              | ✅        |
-| MYSQL_PASSWORD              | MySQL Password                    | postgres              | ✅        |
-| MYSQL_DATABASE              | MySQL Database Name               | ragwebui              | ✅        |
-| SECRET_KEY                  | JWT Secret Key                    | -                     | ✅        |
-| ACCESS_TOKEN_EXPIRE_MINUTES | JWT Token Expiry (minutes)        | 30                    | ✅        |
-| CHROMA_DB_HOST              | ChromaDB Server Address           | localhost             | ✅        |
-| CHROMA_DB_PORT              | ChromaDB Port                     | 8001                  | ✅        |
-| OPENAI_API_KEY              | OpenAI API Key                    | -                     | ✅        |
-| OPENAI_API_BASE             | OpenAI API Proxy URL              | -                     | ❌        |
-| OPENAI_MODEL                | OpenAI Model Name                 | gpt-4                 | ✅        |
-| MINIO_ENDPOINT              | MinIO Server Address              | localhost:9000        | ✅        |
-| MINIO_ACCESS_KEY            | MinIO Access Key                  | minioadmin            | ✅        |
-| MINIO_SECRET_KEY            | MinIO Secret Key                  | minioadmin            | ✅        |
-| MINIO_BUCKET_NAME           | MinIO Bucket Name                 | documents             | ✅        |
-| VECTOR_STORE_TYPE           | Vector Store Type                 | chroma                | ✅        |
-| VECTOR_STORE_URL            | Vector Store URL For Qdrant       | http://localhost:6333 | ❌        |
-| VECTOR_STORE_PREFER_GRPC    | Prefer gRPC Connection For Qdrant | true                  | ❌        |
+| Parameter                   | Description                                                             | Default               | Required |
+| --------------------------- | ----------------------------------------------------------------------- | --------------------- | -------- |
+| MYSQL_SERVER                | MySQL Server Address                                                    | localhost             | ✅        |
+| MYSQL_USER                  | MySQL Username                                                          | postgres              | ✅        |
+| MYSQL_PASSWORD              | MySQL Password                                                          | postgres              | ✅        |
+| MYSQL_DATABASE              | MySQL Database Name                                                     | ragwebui              | ✅        |
+| SECRET_KEY                  | JWT Secret Key                                                          | -                     | ✅        |
+| ACCESS_TOKEN_EXPIRE_MINUTES | JWT Token Expiry (minutes)                                              | 30                    | ✅        |
+| CHROMA_DB_HOST              | ChromaDB Server Address                                                 | localhost             | ✅        |
+| CHROMA_DB_PORT              | ChromaDB Port                                                           | 8001                  | ✅        |
+| OPENAI_API_KEY              | OpenAI API Key (DeepSeek Compatible)                                    | -                     | ✅        |
+| OPENAI_API_BASE             | OpenAI API Proxy URL (DeepSeek Compatible: https://api.deepseek.com/v1) | -                     | ❌        |
+| OPENAI_MODEL                | OpenAI Model Name                                                       | gpt-4                 | ✅        |
+| MINIO_ENDPOINT              | MinIO Server Address                                                    | localhost:9000        | ✅        |
+| MINIO_ACCESS_KEY            | MinIO Access Key                                                        | minioadmin            | ✅        |
+| MINIO_SECRET_KEY            | MinIO Secret Key                                                        | minioadmin            | ✅        |
+| MINIO_BUCKET_NAME           | MinIO Bucket Name                                                       | documents             | ✅        |
+| VECTOR_STORE_TYPE           | Vector Store Type                                                       | chroma                | ✅        |
+| VECTOR_STORE_URL            | Vector Store URL For Qdrant                                             | http://localhost:6333 | ❌        |
+| VECTOR_STORE_PREFER_GRPC    | Prefer gRPC Connection For Qdrant                                       | true                  | ❌        |
 
 ## 🤝 Contributing
 
