@@ -547,3 +547,236 @@ sequenceDiagram
 这种设计让整个文档处理流程更加健壮和可扩展。
 
 当然这里也设计也有设计到一些小细节，例如在处理文档的时候，可能很多系统都会选择先删后增，但是这样会导致向量数据库中的数据被删除，从而导致检索结果不准确。所以我们这里会通过一个临时表来实现这个功能，确保新的文件被处理后，旧的文件才被删除。
+
+### 6.2 用户提问 → 检索 + LLM 生成
+
+代码可查阅： `backend/app/services/chat_service.py`
+
+从前端使用 AI SDK 发送到后台，后台接口接收后会进行，用户 Query 的处理流程如下:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant Backend
+    participant DB
+    participant VectorStore
+    participant LLM
+
+    User->>Frontend: 发送问题
+    Frontend->>Backend: 发送请求
+    
+    rect rgb(200, 220, 250)
+        Note over Backend: 消息存储阶段
+        Backend->>DB: 存储用户问题(user类型)
+        Backend->>DB: 创建空assistant记录
+    end
+    
+    rect rgb(200, 250, 220)
+        Note over Backend: 知识库准备阶段
+        Backend->>VectorStore: 初始化向量存储
+        Backend->>VectorStore: 获取相关知识库
+    end
+    
+    rect rgb(250, 220, 200)
+        Note over Backend: RAG处理阶段
+        Backend->>VectorStore: 执行相似度检索
+        VectorStore-->>Backend: 返回相关文档
+        Backend->>LLM: 发送上下文化问题请求
+        LLM-->>Backend: 返回重构后的问题
+        Backend->>LLM: 发送最终生成请求
+        LLM-->>Backend: 流式返回答案
+    end
+    
+    Backend-->>Frontend: 流式返回(context + answer)
+    
+    rect rgb(220, 220, 250)
+        Note over Frontend: 响应处理阶段
+        Frontend->>Frontend: 解析context(base64)
+        Frontend->>Frontend: 解析引用标记
+        Frontend->>Frontend: 渲染回答和引用
+    end
+    
+    Frontend-->>User: 展示答案和引用
+```
+
+1. **消息存储**
+   - 将用户的提问内容保存为 user 类型的消息记录
+   - 创建一个空的 assistant 类型消息记录作为占位符
+
+2. **知识库准备**
+   - 根据传入的 knowledge_base_ids 获取相关知识库
+   - 初始化 OpenAI Embeddings
+   - 为每个知识库创建对应的向量存储 (Vector Store)
+
+3. **检索增强生成 (RAG) 处理**
+   - 使用向量存储创建检索器 (Retriever)
+   - 构建两个关键提示词模板:
+     - `contextualize_q_prompt`: 用于理解聊天历史上下文,重新构造独立的问题
+     - `qa_prompt`: 用于生成最终答案,包含引用格式要求和语言适配等规则
+
+4. **响应生成**
+   - 处理历史聊天记录,构建对话上下文
+   - 使用流式响应逐步生成内容
+   - 响应内容包含两部分:
+     - 相关文档上下文 (base64 编码)
+     - LLM 生成的回答内容
+
+5. **结果处理**
+   - 实时返回生成的内容片段
+   - 更新数据库中的 assistant 消息记录
+   - 完整响应格式: `{context_base64}__LLM_RESPONSE__{answer}`
+
+6. **异常处理**
+   - 捕获并记录生成过程中的错误
+   - 更新错误信息到消息记录
+   - 确保数据库会话正确关闭
+
+前端接收到后台返回的 stream 返回以后，可开始解析这个 stream 后， 除了正常和其他 QA 聊天工具一样， 这里还多了一个引用信息， 所以需要解析出引用信息， 然后展示在页面上。
+
+他是怎么运作的呢？这里前端会通过 `__LLM_RESPONSE__` 这个分隔符来解析, 前面一部分是 RAG 检索出来的 context 信息（base64 编码， 可以理解为是检索出来的切片的数组），后面是 LLM 按照 context 回来的信息， 然后通过 `[[citation:1]]` 这个格式来解析出引用信息。
+
+```mermaid
+flowchart TD
+    A[接收Stream响应] --> B{解析响应}
+    B -->|分割| C[Context部分]
+    B -->|分割| D[Answer部分]
+    
+    C --> E[Base64解码]
+    E --> F[解析引用信息]
+    
+    D --> G[解析引用标记]
+    G --> H[[citation:1]]
+    
+    F --> I[准备引用数据]
+    H --> I
+    
+    I --> J[渲染回答内容]
+    J --> K[显示引用弹窗]
+```
+
+代码可查询： 
+- Chat 页面：`frontend/src/app/dashboard/chat/[id]/page.tsx`
+- 引用信息展示：`frontend/src/components/chat/answer.tsx`
+
+```js
+  const CitationLink = useMemo(
+    () =>
+      (
+        props: ClassAttributes<HTMLAnchorElement> &
+          AnchorHTMLAttributes<HTMLAnchorElement>
+      ) => {
+        const citationId = props.href?.match(/^(\d+)$/)?.[1];
+        const citation = citationId
+          ? citations[parseInt(citationId) - 1]
+          : null;
+
+        if (!citation) {
+          return <a>[{props.href}]</a>;
+        }
+
+        const citationInfo =
+          citationInfoMap[
+            `${citation.metadata.kb_id}-${citation.metadata.document_id}`
+          ];
+
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <a
+                {...props}
+                href="#"
+                role="button"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors relative"
+              >
+                <span className="absolute -top-3 -right-1">[{props.href}]</span>
+              </a>
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              align="start"
+              className="max-w-2xl w-[calc(100vw-100px)] p-4 rounded-lg shadow-lg"
+            >
+              <div className="text-sm space-y-3">
+                {citationInfo && (
+                  <div className="flex items-center gap-2 text-xs font-medium text-gray-700 bg-gray-50 p-2 rounded">
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      <FileIcon
+                        extension={
+                          citationInfo.document.file_name.split(".").pop() || ""
+                        }
+                        color="#E2E8F0"
+                        labelColor="#94A3B8"
+                      />
+                    </div>
+                    <span className="truncate">
+                      {citationInfo.knowledge_base.name} /{" "}
+                      {citationInfo.document.file_name}
+                    </span>
+                  </div>
+                )}
+                <Divider />
+                <p className="text-gray-700 leading-relaxed">{citation.text}</p>
+                <Divider />
+                {Object.keys(citation.metadata).length > 0 && (
+                  <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                    <div className="font-medium mb-2">Debug Info:</div>
+                    <div className="space-y-1">
+                      {Object.entries(citation.metadata).map(([key, value]) => (
+                        <div key={key} className="flex">
+                          <span className="font-medium min-w-[100px]">
+                            {key}:
+                          </span>
+                          <span className="text-gray-600">{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        );
+      },
+    [citations, citationInfoMap]
+  );
+```
+
+当用户点击引用信息的时候， 会弹出一个弹窗， 展示引用详情， 包括知识库名称， 文件名称， 以及引用内容。
+
+## 7. 拓展：根据需求定制你的 RAG
+
+### 7.1 不同的向量数据库或大语言模型
+
+目前已经通过 Factory 模式， 支持了不同的向量数据库、不同的大模型，例如 Ollama 也有同学在支持， 可以参考 `backend/app/services/vector_store/factory.py` 这个文件。
+
+### 7.2 Chunk 分割策略与 Embedding 模型的调整
+
+不同的 Embedding 模型对多语言支持和文本类型有不同的特点：
+
+- **多语言支持**：
+  - `text-embedding-ada-002`：支持多种语言，但对中文等亚洲语言的支持相对较弱
+  - `bge-large-zh`：对中文有很好的支持
+  - `multilingual-e5-large`：对多语言都有较好的支持
+
+- **文本类型适用性**：
+  - 代码文本：建议使用专门的代码 Embedding 模型，如 `CodeBERT`
+  - 通用文本：可以使用 `text-embedding-ada-002` 或 `bge-large-zh`
+  - 专业领域文本：建议使用该领域的专门模型
+
+选择合适的 Embedding 模型可以显著提升检索效果。
+
+## 8. 总结与下一步
+
+整个项目到这里就结束了， 整个项目中， 我们通过一个完整的工程实现示例， 来理解 RAG 在知识库问答中的具体应用流程。
+
+如果你需要 Ask Me Anything， 可以通过 Issue 来联系我。
+
+你可以深入研究的方向
+- 多路召回（多个数据库或不同关注点检索结果的合并）
+- RAG + 交叉编码 re-ranking 提高回答精度
+- 长文本多轮对话（上下文记忆 / Conversation Memory）
+
+-  [LangChain 官网](https://python.langchain.com/)  
+-  [ChromaDB](https://docs.trychroma.com/)  
+- [OpenAI Embeddings 介绍](https://platform.openai.com/docs/guides/embeddings)  
