@@ -221,7 +221,7 @@ flowchart TD
 - 有助于提高检索的准确性
 
 2. LLM 的上下文窗口限制
-- LLM 的输入长度是有限的 （虽然 Qwen 已经退出了 1M token 的上下文窗口 0.0）
+- LLM 的输入长度是有限的 （虽然 Qwen 已经推出了 1M token 的上下文窗口 0.0）
 - 需要将文档切分为适合 LLM 处理的大小
 - 避免超出 token 限制导致信息丢失
 
@@ -264,37 +264,37 @@ flowchart TD
 - 检索效率与成本的平衡
 
 例如如果是 markdown，可以按段落进行分块，如果是一般文档，可以按章节进行分块。
-```
 +--------------------------------------------------+
-|  # 第一章标题                                      |
-|  正文内容...                                       |
-|  正文内容...                                       |
+|  # Chapter 1 Title                               |
+|  Main content...                                 |
+|  Main content...                                 |
 |                                                  |
-|  ## 1.1 小节标题                                  |
-|  - 列表项 1                                       |
-|  - 列表项 2                                       |
+|  ## 1.1 Section Title                            |
+|  - List item 1                                   |
+|  - List item 2                                   |
 |                                                  |
-|  ### 1.1.1 子节标题                               |
-|  正文段落...                                      |
+|  ### 1.1.1 Subsection Title                      |
+|  Main paragraph...                               |
 |                                                  |
-|  # 第二章标题                                     |
-|  另一段正文...                                    |
+|  # Chapter 2 Title                               |
+|  Another paragraph...                            |
 +--------------------------------------------------+
-                    |
-                    v
-              语义分块处理
-                    |
-                    v
+                              |
+                              v
+                          Chunking 切片
+                              |
+                              v
 +------------------+  +-------------------+  +------------------+
-| 块 1:            |  | 块 2:              |  | 块 3:            |
-| # 第一章标题      |  | ## 1.1 小节标题     |  | # 第二章标题       |
-| 正文内容...       |  | - 列表项 1         |  | 另一段正文...      |
-| 正文内容...       |  | - 列表项 2         |  |                   |
+| Chunk 1:         |  | Chunk 2:          |  | Chunk 3:         |
+| # Chapter 1      |  | ## 1.1 Section    |  | # Chapter 2      |
+| Title            |  | Title             |  | Title            |
+| Main content...  |  | - List item 1     |  | Another          |
+| Main content...  |  | - List item 2     |  | paragraph...     |
 +------------------+  |                   |  +------------------+
-                      | ### 1.1.1 子节标题 |
-                      | 正文段落...        |
+                      | ### 1.1.1         |
+                      | Subsection Title  |
+                      | Main paragraph... |
                       +-------------------+
-```
 
 ### 3.2 文本向量化 (Embedding)
 
@@ -468,4 +468,82 @@ qa_system_prompt = (
 
 ## 6. 工程实战示例：RAG 在知识库 QA 中的流程
 
-To be continued...
+理论的事情，相信大家都了解了，相信大家也看过不少的文章，但是可能没有真正动手实践过，或者项目太复杂无从下手，或是没有一个完整的项目可以参考。
+
+在工程的实践中，去掉那些花里胡哨的东西， 直接上代码，直接上手实践，才是这个项目的意义所在。
+
+这个项目中，用的都是目前最为流行的技术栈， 例如：
+
+- 前端：React（Nextjs） + TailwindCSS + AI SDK
+- 后端：FastAPI + LangChain + ChromaDB/Qdrant + MySQL + MinIO
+- 部署：Docker + Docker Compose
+
+让我们通过一个完整的工程实现示例，来理解 RAG 在知识库问答中的具体应用流程。我们将按照数据流的顺序，逐步解析关键代码的实现。
+
+### 6.1 文档上传 → 异步处理
+
+详细代码可以参考： `backend/app/services/document_processor.py`
+
+![文档上传](../images/screenshot2.png)
+
+从上面的系统架构图中可以看到，文档上传和处理的流程如下：
+
+[这里补一个 mermaid 的图]
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant NFS
+    participant Queue
+    participant Worker
+    participant VectorDB
+
+    Client->>API: 上传文档
+    API->>NFS: 存储文档
+    API->>Queue: 创建处理任务
+    API-->>Client: 返回 Job ID
+
+    loop 状态查询
+        Client->>API: 查询进度 (Job ID)
+        API-->>Client: 返回处理状态
+    end
+
+    Queue->>Worker: 分发任务
+    Worker->>NFS: 读取文档
+    Worker->>Worker: 文本提取
+    Worker->>Worker: 文本分块
+    Worker->>Worker: 向量化处理
+    Worker->>VectorDB: 存储向量数据
+    Worker->>Queue: 更新任务状态
+```
+
+1. 用户上传文档 (PDF/MD/TXT/DOCX)
+   - 客户端发起文档上传请求
+   - 文档被临时存储到 NFS (Network File System)
+   - 系统生成并返回一个 Job ID 给客户端
+
+2. 异步处理流程启动
+   - 文档预处理：提取文本、清洗数据
+   - 文本分块：按照设定的策略进行分段
+   - 向量化：通过 Embedding 服务将文本转换为向量
+   - 存储：将向量数据保存到向量数据库
+
+3. 状态查询
+   - 客户端通过 Job ID 轮询任务状态
+   - 系统返回当前进度 (Processing/Completed/Failed)
+
+这种异步处理的设计有以下优点：
+- 支持大文件处理：不会因处理时间过长导致请求超时
+- 提升用户体验：用户可以实时查看处理进度
+- 系统解耦：文档处理与存储服务可以独立扩展
+- 错误处理：失败任务可以重试，不影响其他上传
+
+在代码实现中，主要涉及以下几个关键组件：
+1. 文件上传接口
+2. 任务队列系统
+3. 异步处理服务
+4. 状态查询接口
+
+这种设计让整个文档处理流程更加健壮和可扩展。
+
+当然这里也设计也有设计到一些小细节，例如在处理文档的时候，可能很多系统都会选择先删后增，但是这样会导致向量数据库中的数据被删除，从而导致检索结果不准确。所以我们这里会通过一个临时表来实现这个功能，确保新的文件被处理后，旧的文件才被删除。
