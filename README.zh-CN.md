@@ -33,6 +33,8 @@ RAG Web UI 是一个基于 RAG (Retrieval-Augmented Generation) 技术的智能�
 
 同时提供 OpenAPI 接口，方便用户通过 API 调用知识库。
 
+你可以通过[RAG 教程](./docs/tutorial/README.md)来了解整个项目的实现流程。
+
 ## ✨ 特性
 - 📚 **智能文档管理**
   - 支持多种文档格式 (PDF、DOCX、Markdown、Text)
