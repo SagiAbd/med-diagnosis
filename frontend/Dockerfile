@@ -14,11 +14,8 @@ RUN pnpm install --frozen-lockfile
 # Copy the rest of the application
 COPY . .
 
-# Build the application
-RUN pnpm build
-
 # Expose the port
 EXPOSE 3000
 
-# Start the application
-CMD ["pnpm", "start"]
+# Start the development server, attention: this is for development, not for production
+CMD ["pnpm", "dev"]

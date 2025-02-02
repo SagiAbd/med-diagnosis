@@ -198,9 +198,9 @@ cp backend/.env.example backend/.env
 # 编辑 .env 文件，填写必要的配置项 （见下文）
 ```
 
-3. 启动服务
+3. 启动服务(开发环境的配置)
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 ### 验证安装

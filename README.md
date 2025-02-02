@@ -193,9 +193,9 @@ cp backend/.env.example backend/.env
 # Edit .env file with necessary configurations
 ```
 
-3. Start services
+3. Start services(development server)
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 ### Verification
