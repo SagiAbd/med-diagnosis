@@ -264,6 +264,8 @@ flowchart TD
 - 检索效率与成本的平衡
 
 例如如果是 markdown，可以按段落进行分块，如果是一般文档，可以按章节进行分块。
+
+```
 +--------------------------------------------------+
 |  # Chapter 1 Title                               |
 |  Main content...                                 |
@@ -295,6 +297,8 @@ flowchart TD
                       | Subsection Title  |
                       | Main paragraph... |
                       +-------------------+
+
+```
 
 ### 3.2 文本向量化 (Embedding)
 
@@ -488,7 +492,6 @@ qa_system_prompt = (
 
 从上面的系统架构图中可以看到，文档上传和处理的流程如下：
 
-[这里补一个 mermaid 的图]
 ```mermaid
 sequenceDiagram
     participant Client
