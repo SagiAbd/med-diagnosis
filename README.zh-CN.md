@@ -334,6 +334,9 @@ alembic upgrade head
 - [Next.js](https://nextjs.org/)
 - [ChromaDB](https://www.trychroma.com/)
 
+
+![star history](https://api.star-history.com/svg?repos=rag-web-ui/rag-web-ui&type=Date)
+
 ---
 
 <div align="center">
