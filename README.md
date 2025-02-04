@@ -329,6 +329,9 @@ Thanks to these open source projects:
 - [Next.js](https://nextjs.org/)
 - [ChromaDB](https://www.trychroma.com/)
 
+
+![star history](https://api.star-history.com/svg?repos=rag-web-ui/rag-web-ui&type=Date)
+
 ---
 
 <div align="center">
