@@ -281,6 +281,7 @@ alembic upgrade head
 | ACCESS_TOKEN_EXPIRE_MINUTES | JWT Token Expiry (minutes)                                              | 30                    | ✅        |
 | CHROMA_DB_HOST              | ChromaDB Server Address                                                 | localhost             | ✅        |
 | CHROMA_DB_PORT              | ChromaDB Port                                                           | 8001                  | ✅        |
+| EMBEDDINGS_PROVIDER         | Embeddings Service Provider                                             | openai                | ✅        |
 | OPENAI_API_KEY              | OpenAI API Key (DeepSeek Compatible)                                    | -                     | ✅        |
 | OPENAI_API_BASE             | OpenAI API Proxy URL (DeepSeek Compatible: https://api.deepseek.com/v1) | -                     | ❌        |
 | OPENAI_MODEL                | OpenAI Model Name                                                       | gpt-4                 | ✅        |

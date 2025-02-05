@@ -283,6 +283,7 @@ alembic upgrade head
 | MYSQL_DATABASE              | MySQL 数据库名                                                      | ragwebui              | ✅    |
 | SECRET_KEY                  | JWT 加密密钥                                                        | -                     | ✅    |
 | ACCESS_TOKEN_EXPIRE_MINUTES | JWT token 过期时间(分钟)                                            | 30                    | ✅    |
+| EMBEDDINGS_PROVIDER         | Embeddings Service Provider                                         | openai                | ✅    |
 | CHROMA_DB_HOST              | ChromaDB 服务器地址                                                 | localhost             | ✅    |
 | CHROMA_DB_PORT              | ChromaDB 端口                                                       | 8001                  | ✅    |
 | OPENAI_API_KEY              | OpenAI API 密钥 （DeepSeek 兼容）                                   | -                     | ✅    |
