@@ -13,7 +13,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       # embeddings provider, if set to openai, use the openai api key and base url
-      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER}
+      - EMBEDDINGS_PROVIDER=openai
       # remember to set the openai api key and base url
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_API_BASE=${OPENAI_API_BASE}
