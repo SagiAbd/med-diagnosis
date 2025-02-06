@@ -303,13 +303,13 @@ alembic upgrade head
 
 ### 向量数据库配置
 
-| 配置项                   | 说明                      | 默认值                | 适用场景             |
-| ------------------------ | ------------------------- | --------------------- | -------------------- |
-| VECTOR_STORE_TYPE        | 向量存储类型              | chroma                | ✅                    |
-| CHROMA_DB_HOST           | ChromaDB 服务器地址       | localhost             | 使用 ChromaDB 时必填 |
-| CHROMA_DB_PORT           | ChromaDB 端口             | 8000                  | 使用 ChromaDB 时必填 |
-| VECTOR_STORE_URL         | Qdrant 向量存储 URL       | http://localhost:6333 | 使用 Qdrant 时必填   |
-| VECTOR_STORE_PREFER_GRPC | Qdrant 优先使用 gRPC 连接 | true                  | 使用 Qdrant 时可选   |
+| 配置项             | 说明                      | 默认值                | 适用场景             |
+| ------------------ | ------------------------- | --------------------- | -------------------- |
+| VECTOR_STORE_TYPE  | 向量存储类型              | chroma                | ✅                    |
+| CHROMA_DB_HOST     | ChromaDB 服务器地址       | localhost             | 使用 ChromaDB 时必填 |
+| CHROMA_DB_PORT     | ChromaDB 端口             | 8000                  | 使用 ChromaDB 时必填 |
+| QDRANT_URL         | Qdrant 向量存储 URL       | http://localhost:6333 | 使用 Qdrant 时必填   |
+| QDRANT_PREFER_GRPC | Qdrant 优先使用 gRPC 连接 | true                  | 使用 Qdrant 时可选   |
 
 ### 对象存储配置
 
