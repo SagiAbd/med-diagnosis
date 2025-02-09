@@ -30,7 +30,7 @@
 ## 📖 Introduction
 RAG Web UI is an intelligent dialogue system based on RAG (Retrieval-Augmented Generation) technology that helps build intelligent Q&A systems based on your own knowledge base. By combining document retrieval and large language models, it achieves accurate and reliable knowledge-based question answering services.
 
-The system supports multiple LLM deployment options, including cloud services like OpenAI and DeepSeek, as well as local model deployment through Ollama, meeting privacy and cost requirements in different scenarios.
+The system supports multiple **LLM** deployment options, including cloud services like **OpenAI** and **DeepSeek**, as well as local model deployment through **Ollama**, meeting privacy and cost requirements in different scenarios.
 
 It also provides OpenAPI interfaces for convenient knowledge base access via API calls.
 
