@@ -304,7 +304,7 @@ alembic upgrade head
 | OPENAI_EMBEDDINGS_MODEL     | OpenAI Embedding 模型    | text-embedding-ada-002 | 使用 OpenAI Embedding 时必填 |
 | DASH_SCOPE_API_KEY          | DashScope API 密钥       | -                      | 使用 DashScope 时必填        |
 | DASH_SCOPE_EMBEDDINGS_MODEL | DashScope Embedding 模型 | -                      | 使用 DashScope 时必填        |
-| OLLAMA_EMBEDDINGS_MODEL     | Ollama Embedding 模型    | deepseek-r1:7b         | 使用 Ollama Embedding 时必填 |
+| OLLAMA_EMBEDDINGS_MODEL     | Ollama Embedding 模型    | -                      | 使用 Ollama Embedding 时必填 |
 
 ### 向量数据库配置
 
