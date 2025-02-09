@@ -31,6 +31,8 @@
 
 RAG Web UI 是一个基于 RAG (Retrieval-Augmented Generation) 技术的智能对话系统，它能够帮助构建基于自有知识库的智能问答系统。通过结合文档检索和大语言模型，实现了准确、可靠的知识问答服务。
 
+系统支持多种大语言模型部署方式，既可以使用 OpenAI、DeepSeek 等云端服务，也支持通过 Ollama 部署本地模型，满足不同场景下的隐私和成本需求。
+
 同时提供 OpenAPI 接口，方便用户通过 API 调用知识库。
 
 你可以通过[RAG 教程](./docs/tutorial/README.md)来了解整个项目的实现流程。
@@ -349,11 +351,12 @@ alembic upgrade head
 
 ### 🚧 Roadmap
 
-- [x] Knowledge Base API Integration
-- [ ] Workflow By Natural Language
+- [x] 知识库 API 集成
+- [ ] 自然语言工作流
 - [ ] 多路召回
-- [ ] 支持多模型
-- [ ] 支持多向量数据库
+- [x] 支持多模型
+- [x] 支持多向量数据库
+- [x] 支持本地模型
 
 ## 补充
 
