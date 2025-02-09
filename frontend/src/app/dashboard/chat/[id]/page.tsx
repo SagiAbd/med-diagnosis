@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "ai/react";
-import { Send } from "lucide-react";
+import { Send, User, Bot } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
@@ -247,8 +247,18 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-[80px]">
           {processedMessages.map((message) =>
             message.role === "assistant" ? (
-              <div key={message.id} className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg px-4 py-2 bg-accent text-accent-foreground">
+              <div
+                key={message.id}
+                className="flex justify-start items-start space-x-2"
+              >
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <img
+                    src="/logo.png"
+                    className="h-8 w-8 rounded-full"
+                    alt="logo"
+                  />
+                </div>
+                <div className="max-w-[80%] rounded-lg px-4 py-2 text-accent-foreground">
                   <Answer
                     key={message.id}
                     markdown={message.content}
@@ -257,9 +267,15 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
             ) : (
-              <div key={message.id} className="flex justify-end">
+              <div
+                key={message.id}
+                className="flex justify-end items-start space-x-2"
+              >
                 <div className="max-w-[80%] rounded-lg px-4 py-2 bg-primary text-primary-foreground">
                   {message.content}
+                </div>
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                  <User className="h-5 w-5 text-primary-foreground" />
                 </div>
               </div>
             )
@@ -268,7 +284,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
             {isLoading &&
               processedMessages[processedMessages.length - 1]?.role !=
                 "assistant" && (
-                <div className="max-w-[80%] rounded-lg px-4 py-2 bg-accent text-accent-foreground">
+                <div className="max-w-[80%] rounded-lg px-4 py-2 text-accent-foreground">
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
                     <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />

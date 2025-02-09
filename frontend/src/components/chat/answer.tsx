@@ -49,8 +49,8 @@ export const Answer: FC<{
 
   const processedMarkdown = useMemo(() => {
     return markdown
-      .replace(/<think>([\s\S]*?)<\/think>/g, "```bash$1```")
-      .replace(/<think\/>/g, "```bash```");
+      .replace(/<think>/g, "## 💭 深度思考\n```think")
+      .replace(/<\/think>/g, "```");
   }, [markdown]);
 
   useEffect(() => {
