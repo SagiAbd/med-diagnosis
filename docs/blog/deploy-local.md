@@ -61,9 +61,8 @@ cp .env.example .env
 ````env
 # LLM 配置
 CHAT_PROVIDER=ollama
-OLLAMA_API_BASE=http://ollama:11434
+OLLAMA_API_BASE=http://host.docker.internal:11434
 OLLAMA_MODEL=deepseek-r1:7b
-
 # Embedding 配置
 EMBEDDINGS_PROVIDER=ollama
 OLLAMA_EMBEDDINGS_MODEL=nomic-embed-text
