@@ -290,6 +290,8 @@ alembic upgrade head
 | DEEPSEEK_API_KEY  | DeepSeek API 密钥     | -                         | 使用 DeepSeek 时必填 |
 | DEEPSEEK_API_BASE | DeepSeek API 基础 URL | -                         | 使用 DeepSeek 时必填 |
 | DEEPSEEK_MODEL    | DeepSeek 模型名称     | -                         | 使用 DeepSeek 时必填 |
+| OLLAMA_API_BASE   | Ollama API 基础 URL   | http://localhost:11434    | 使用 Ollama 时必填   |
+| OLLAMA_MODEL      | Ollama 模型名称       | llama2                    | 使用 Ollama 时必填   |
 
 ### Embedding 配置
 
@@ -300,6 +302,7 @@ alembic upgrade head
 | OPENAI_EMBEDDINGS_MODEL     | OpenAI Embedding 模型    | text-embedding-ada-002 | 使用 OpenAI Embedding 时必填 |
 | DASH_SCOPE_API_KEY          | DashScope API 密钥       | -                      | 使用 DashScope 时必填        |
 | DASH_SCOPE_EMBEDDINGS_MODEL | DashScope Embedding 模型 | -                      | 使用 DashScope 时必填        |
+| OLLAMA_EMBEDDINGS_MODEL     | Ollama Embedding 模型    | deepseek-r1:7b         | 使用 Ollama Embedding 时必填 |
 
 ### 向量数据库配置
 

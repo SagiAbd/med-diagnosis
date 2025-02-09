@@ -67,3 +67,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+.language-bash {
+  @apply rounded-lg;
+  @apply mb-2;
+  @apply leading-[0.8];
+}

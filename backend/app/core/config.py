@@ -71,4 +71,11 @@ class Settings(BaseSettings):
     DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"  # 默认 API 地址
     DEEPSEEK_MODEL: str = "deepseek-chat"  # 默认模型名称
 
+    # Ollama settings
+    OLLAMA_API_BASE: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "deepseek-r1:7b"
+
+    class Config:
+        env_file = ".env"
+
 settings = Settings()

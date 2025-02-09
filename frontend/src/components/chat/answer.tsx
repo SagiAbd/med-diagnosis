@@ -14,6 +14,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Divider } from "@/components/ui/divider";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { api } from "@/lib/api";
 import { FileIcon } from "react-file-icon";
 
@@ -44,6 +46,12 @@ export const Answer: FC<{
   const [citationInfoMap, setCitationInfoMap] = useState<
     Record<string, CitationInfo>
   >({});
+
+  const processedMarkdown = useMemo(() => {
+    return markdown
+      .replace(/<think>([\s\S]*?)<\/think>/g, "```bash$1```")
+      .replace(/<think\/>/g, "```bash```");
+  }, [markdown]);
 
   useEffect(() => {
     const fetchCitationInfo = async () => {
@@ -182,11 +190,13 @@ export const Answer: FC<{
   return (
     <div className="prose prose-sm max-w-full">
       <Markdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
         components={{
           a: CitationLink,
         }}
       >
-        {markdown}
+        {processedMarkdown}
       </Markdown>
     </div>
   );

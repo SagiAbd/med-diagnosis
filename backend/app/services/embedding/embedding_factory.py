@@ -1,8 +1,9 @@
 from app.core.config import settings
 from langchain_openai import OpenAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
+from langchain_community.embeddings import DashScopeEmbeddings
 # If you plan on adding other embeddings, import them here
 # from some_other_module import AnotherEmbeddingClass
-from langchain_community.embeddings import DashScopeEmbeddings
 
 
 class EmbeddingsFactory:
@@ -24,6 +25,11 @@ class EmbeddingsFactory:
             return DashScopeEmbeddings(
                 model=settings.DASH_SCOPE_EMBEDDINGS_MODEL,
                 dashscope_api_key=settings.DASH_SCOPE_API_KEY
+            )
+        elif embeddings_provider == "ollama":
+            return OllamaEmbeddings(
+                model=settings.OLLAMA_EMBEDDINGS_MODEL,
+                base_url=settings.OLLAMA_API_BASE
             )
 
         # Extend with other providers:
