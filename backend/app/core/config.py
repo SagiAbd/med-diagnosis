@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     # Ollama settings
     OLLAMA_API_BASE: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "deepseek-r1:7b"
+    OLLAMA_EMBEDDINGS_MODEL: str = os.getenv("OLLAMA_EMBEDDINGS_MODEL", "nomic-embed-text")  # Added this line
+    
 
     class Config:
         env_file = ".env"
