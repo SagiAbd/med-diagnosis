@@ -13,9 +13,12 @@ services:
     networks:
       - app_network
     depends_on:
-      - db
-      - chromadb
-      - minio
+      db:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+      minio:
+        condition: service_started
     restart: on-failure
     deploy:
       restart_policy:
@@ -52,6 +55,22 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - app_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "$$MYSQL_USER",
+          "--password=$$MYSQL_PASSWORD",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   chromadb:
     image: chromadb/chroma:latest
