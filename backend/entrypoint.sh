@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# exit on error
+set -e
+
 echo "Waiting for MySQL..."
 while ! nc -z db 3306; do
   sleep 1
@@ -7,7 +10,12 @@ done
 echo "MySQL started"
 
 echo "Running migrations..."
-alembic upgrade head
+if alembic upgrade head; then
+  echo "Migrations completed successfully"
+else
+  echo "Migration failed"
+  exit 1
+fi
 
 echo "Starting application..."
 if [ "$ENVIRONMENT" = "development" ]; then
