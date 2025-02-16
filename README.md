@@ -325,7 +325,6 @@ We welcome community contributions!
 - Follow [Python PEP 8](https://pep8.org/) coding standards
 - Follow [Conventional Commits](https://www.conventionalcommits.org/)
 
-
 ### 🚧 Roadmap
 
 - [x] Knowledge Base API Integration
@@ -333,6 +332,10 @@ We welcome community contributions!
 - [ ] Multi-path Retrieval
 - [x] Support Multiple Models
 - [x] Support Multiple Vector Databases
+
+## 🔧 Troubleshooting
+
+For common issues and solutions, please refer to our [Troubleshooting Guide](docs/troubleshooting.md).
 
 ## 📄 License
 

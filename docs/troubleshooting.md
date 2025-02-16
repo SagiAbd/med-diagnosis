@@ -126,7 +126,7 @@ docker exec ragwebui-backend-1 ping db
 docker compose -f docker-compose.yml logs backend
 
 # Verify backend health
-curl http://localhost:8000/health
+curl http://localhost/api/health
 ```
 
 #### Memory Issues

@@ -331,7 +331,6 @@ docker compose -f docker-compose.dev.yml up -d --build
 - 遵循 [Python PEP 8](https://pep8.org/) 代码规范
 - 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 提交规范
 
-
 ### 🚧 Roadmap
 
 - [x] 知识库 API 集成
@@ -344,6 +343,10 @@ docker compose -f docker-compose.dev.yml up -d --build
 ## 补充
 
 本项目仅用于学习交流 RAG ，请勿用于商业用途，不具备在生产环境使用的条件，还在持续开发中。
+
+## 🔧 常见问题
+
+为了方便大家使用，我们整理了常见问题和解决方案，请参考[Troubleshooting Guide](docs/troubleshooting.md)。
 
 ## 📄 许可证
 
