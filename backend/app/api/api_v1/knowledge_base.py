@@ -7,6 +7,9 @@ from sqlalchemy import text
 import logging
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from sqlalchemy.orm import selectinload
+import time
+import asyncio
 
 from app.db.session import get_db
 from app.models.user import User
@@ -291,7 +294,6 @@ async def upload_kb_documents(
     
     return results
 
-# Batch preview documents
 @router.post("/{kb_id}/documents/preview")
 async def preview_kb_documents(
     kb_id: int,
@@ -304,7 +306,6 @@ async def preview_kb_documents(
     """
     results = {}
     for doc_id in preview_request.document_ids:
-        # 先尝试在 Document 表中查找
         document = db.query(Document).join(KnowledgeBase).filter(
             Document.id == doc_id,
             Document.knowledge_base_id == kb_id,
@@ -314,7 +315,6 @@ async def preview_kb_documents(
         if document:
             file_path = document.file_path
         else:
-            # 如果不在 Document 表中，则在 DocumentUpload 表中查找
             upload = db.query(DocumentUpload).join(KnowledgeBase).filter(
                 DocumentUpload.id == doc_id,
                 DocumentUpload.knowledge_base_id == kb_id,
@@ -335,7 +335,6 @@ async def preview_kb_documents(
     
     return results
 
-# Batch process documents
 @router.post("/{kb_id}/documents/process")
 async def process_kb_documents(
     kb_id: int,
@@ -347,54 +346,89 @@ async def process_kb_documents(
     """
     Process multiple documents asynchronously.
     """
+    start_time = time.time()
+    
     kb = db.query(KnowledgeBase).filter(
         KnowledgeBase.id == kb_id,
         KnowledgeBase.user_id == current_user.id
     ).first()
+    
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     
-    tasks = []
+    task_info = []
+    upload_ids = []
+    
     for result in upload_results:
-        # 跳过已存在的文件
         if result.get("skip_processing"):
             continue
-            
-        upload_id = result["upload_id"]
-        upload = db.query(DocumentUpload).get(upload_id)
+        upload_ids.append(result["upload_id"])
+    
+    if not upload_ids:
+        return {"tasks": []}
+    
+    uploads = db.query(DocumentUpload).filter(DocumentUpload.id.in_(upload_ids)).all()
+    uploads_dict = {upload.id: upload for upload in uploads}
+    
+    all_tasks = []
+    for upload_id in upload_ids:
+        upload = uploads_dict.get(upload_id)
         if not upload:
             continue
-        
-        try:
-            # 创建处理任务
-            task = ProcessingTask(
-                document_upload_id=upload_id,
-                knowledge_base_id=kb_id,
-                status="pending"
-            )
-            db.add(task)
-            db.commit()
-            db.refresh(task)
             
-            background_tasks.add_task(
-                process_document_background,
-                upload.temp_path,
-                upload.file_name,
-                kb_id,
-                task.id,
-                None
-            )
-            tasks.append({
+        task = ProcessingTask(
+            document_upload_id=upload_id,
+            knowledge_base_id=kb_id,
+            status="pending"
+        )
+        all_tasks.append(task)
+    
+    db.add_all(all_tasks)
+    db.commit()
+    
+    for task in all_tasks:
+        db.refresh(task)
+    
+    task_data = []
+    for i, upload_id in enumerate(upload_ids):
+        if i < len(all_tasks):
+            task = all_tasks[i]
+            upload = uploads_dict.get(upload_id)
+            
+            task_info.append({
                 "upload_id": upload_id,
                 "task_id": task.id
             })
             
-        except Exception as e:
-            logger.error(f"Failed to create processing task: {str(e)}")
-            db.rollback()
-            continue
+            if upload:
+                task_data.append({
+                    "task_id": task.id,
+                    "upload_id": upload_id,
+                    "temp_path": upload.temp_path,
+                    "file_name": upload.file_name
+                })
     
-    return {"tasks": tasks}
+    background_tasks.add_task(
+        add_processing_tasks_to_queue,
+        task_data,
+        kb_id
+    )
+    
+    return {"tasks": task_info}
+
+async def add_processing_tasks_to_queue(task_data, kb_id):
+    """Helper function to add document processing tasks to the queue without blocking the main response."""
+    for data in task_data:
+        asyncio.create_task(
+            process_document_background(
+                data["temp_path"],
+                data["file_name"],
+                kb_id,
+                data["task_id"],
+                None
+            )
+        )
+    logger.info(f"Added {len(task_data)} document processing tasks to queue")
 
 @router.post("/cleanup")
 async def cleanup_temp_files(
@@ -404,7 +438,6 @@ async def cleanup_temp_files(
     """
     Clean up expired temporary files.
     """
-    # 找出过期的上传记录（24小时前）
     expired_time = datetime.utcnow() - timedelta(hours=24)
     expired_uploads = db.query(DocumentUpload).filter(
         DocumentUpload.created_at < expired_time
@@ -412,7 +445,6 @@ async def cleanup_temp_files(
     
     minio_client = get_minio_client()
     for upload in expired_uploads:
-        # 清理临时文件
         try:
             minio_client.remove_object(
                 bucket_name=settings.MINIO_BUCKET_NAME,
@@ -421,14 +453,12 @@ async def cleanup_temp_files(
         except MinioException as e:
             logger.error(f"Failed to delete temp file {upload.temp_path}: {str(e)}")
         
-        # 删除记录
         db.delete(upload)
     
     db.commit()
     
     return {"message": f"Cleaned up {len(expired_uploads)} expired uploads"}
 
-# Get batch processing status
 @router.get("/{kb_id}/documents/tasks")
 async def get_processing_tasks(
     kb_id: int,
@@ -439,14 +469,27 @@ async def get_processing_tasks(
     """
     Get status of multiple processing tasks.
     """
-    # Convert comma-separated string to list of integers
     task_id_list = [int(id.strip()) for id in task_ids.split(",")]
     
-    tasks = db.query(ProcessingTask).join(DocumentUpload).join(KnowledgeBase).filter(
-        ProcessingTask.id.in_(task_id_list),
-        ProcessingTask.knowledge_base_id == kb_id,
+    kb = db.query(KnowledgeBase).filter(
+        KnowledgeBase.id == kb_id,
         KnowledgeBase.user_id == current_user.id
-    ).all()
+    ).first()
+    
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+        
+    tasks = (
+        db.query(ProcessingTask)
+        .options(
+            selectinload(ProcessingTask.document_upload)
+        )
+        .filter(
+            ProcessingTask.id.in_(task_id_list),
+            ProcessingTask.knowledge_base_id == kb_id
+        )
+        .all()
+    )
     
     return {
         task.id: {

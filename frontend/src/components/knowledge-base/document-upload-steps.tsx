@@ -272,14 +272,13 @@ export function DocumentUploadSteps({
       // Start polling for task status
       pollTaskStatus(data.tasks.map((t) => t.task_id));
     } catch (error) {
+      setIsLoading(false);
       toast({
         title: "Processing failed",
         description:
           error instanceof ApiError ? error.message : "Something went wrong",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
