@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
-import { Book, MessageSquare, ArrowRight, Plus } from "lucide-react";
+import {
+  Book,
+  MessageSquare,
+  ArrowRight,
+  Plus,
+  Upload,
+  Brain,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 
 interface KnowledgeBase {
@@ -51,20 +60,23 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 p-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-              Welcome Back
-            </h2>
-            <p className="text-muted-foreground mt-2">
-              Manage your knowledge bases and chat sessions
-            </p>
-          </div>
-          <div className="flex gap-4">
+      <div className="p-8 max-w-7xl mx-auto">
+        {/* Hero Section */}
+        <div className="mb-12 rounded-2xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
+                Knowledge Assistant
+              </h1>
+              <p className="text-slate-600 dark:text-slate-300 max-w-xl">
+                Your personal AI-powered knowledge hub. Upload documents, create
+                knowledge bases, and get instant answers through natural
+                conversations.
+              </p>
+            </div>
             <a
               href="/dashboard/knowledge/new"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+              className="inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Knowledge Base
@@ -72,95 +84,178 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-purple-500/5 p-8 backdrop-blur-sm transition-all hover:shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="space-y-4">
-                <div className="rounded-full bg-primary/10 p-3 w-fit">
-                  <Book className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Knowledge Bases
-                  </p>
-                  <h3 className="text-3xl font-bold mt-1">
-                    {stats.knowledgeBases}
-                  </h3>
-                </div>
+        {/* Stats Section */}
+        <div className="grid gap-6 md:grid-cols-2 mb-12">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center gap-6">
+              <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-4">
+                <Book className="h-8 w-8 text-blue-600 dark:text-blue-400" />
               </div>
-              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="text-4xl font-bold text-slate-900 dark:text-white">
+                  {stats.knowledgeBases}
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">
+                  Knowledge Bases
+                </p>
+              </div>
             </div>
+            <a
+              href="/dashboard/knowledge"
+              className="mt-6 flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+            >
+              View all knowledge bases
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
           </div>
 
-          <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-purple-500/5 p-8 backdrop-blur-sm transition-all hover:shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="space-y-4">
-                <div className="rounded-full bg-primary/10 p-3 w-fit">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Chat Sessions</p>
-                  <h3 className="text-3xl font-bold mt-1">{stats.chats}</h3>
-                </div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center gap-6">
+              <div className="rounded-full bg-indigo-100 dark:bg-indigo-900/30 p-4">
+                <MessageSquare className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="text-4xl font-bold text-slate-900 dark:text-white">
+                  {stats.chats}
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">
+                  Chat Sessions
+                </p>
+              </div>
             </div>
+            <a
+              href="/dashboard/chat"
+              className="mt-6 flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 text-sm font-medium"
+            >
+              View all chat sessions
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-purple-500/5 p-8">
-          <h3 className="text-xl font-semibold mb-6">Getting Started</h3>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-4 rounded-lg border p-6 transition-all hover:border-primary hover:shadow-lg">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+        {/* Quick Actions */}
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6">
+          Quick Actions
+        </h2>
+        <div className="grid gap-6 md:grid-cols-3 mb-12">
+          <a
+            href="/dashboard/knowledge/new"
+            className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm hover:shadow-md transition-all hover:border-blue-500 dark:hover:border-blue-500"
+          >
+            <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-4 mb-4">
+              <Brain className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+              Create Knowledge Base
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+              Build a new AI-powered knowledge repository
+            </p>
+          </a>
+
+          <a
+            href="/dashboard/knowledge"
+            className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm hover:shadow-md transition-all hover:border-indigo-500 dark:hover:border-indigo-500"
+          >
+            <div className="rounded-full bg-indigo-100 dark:bg-indigo-900/30 p-4 mb-4">
+              <Upload className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+              Upload Documents
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+              Add PDF, DOCX, MD or TXT files to your knowledge bases
+            </p>
+          </a>
+
+          <a
+            href="/dashboard/chat/new"
+            className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm hover:shadow-md transition-all hover:border-purple-500 dark:hover:border-purple-500"
+          >
+            <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-4 mb-4">
+              <Sparkles className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+              Start Chatting
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+              Get instant answers from your knowledge with AI
+            </p>
+          </a>
+        </div>
+
+        {/* Getting Started Guide */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 flex items-center">
+            <Search className="mr-3 h-5 w-5 text-blue-600 dark:text-blue-400" />
+            How It Works
+          </h2>
+          <div className="space-y-6">
+            <div className="flex items-start gap-6 p-6 rounded-xl bg-slate-50 dark:bg-slate-700/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-semibold">
                 1
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Create Knowledge Base</h4>
-                  <a href="/dashboard/knowledge/new">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  </a>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Start by creating a new knowledge base and uploading your
-                  documents
+              <div>
+                <h3 className="font-medium text-lg text-slate-900 dark:text-white mb-2">
+                  Create a Knowledge Base
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300">
+                  Start by creating a new knowledge base to organize your
+                  information. Give it a name and description that helps you
+                  identify its purpose.
                 </p>
+                <a
+                  href="/dashboard/knowledge/new"
+                  className="mt-4 inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                >
+                  Create now
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
               </div>
             </div>
 
-            <div className="flex items-start gap-4 rounded-lg border p-6 transition-all hover:border-primary hover:shadow-lg">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <div className="flex items-start gap-6 p-6 rounded-xl bg-slate-50 dark:bg-slate-700/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
                 2
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Upload Documents</h4>
-                  <a href="/dashboard/knowledge">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  </a>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Upload your PDF, DOCX, MD or TXT files to build your knowledge
-                  base
+              <div>
+                <h3 className="font-medium text-lg text-slate-900 dark:text-white mb-2">
+                  Upload Your Documents
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300">
+                  Upload PDF, DOCX, MD or TXT files to your knowledge base. Our
+                  system will process and index them for AI-powered retrieval.
                 </p>
+                <a
+                  href="/dashboard/knowledge"
+                  className="mt-4 inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 text-sm font-medium"
+                >
+                  Upload documents
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
               </div>
             </div>
 
-            <div className="flex items-start gap-4 rounded-lg border p-6 transition-all hover:border-primary hover:shadow-lg">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <div className="flex items-start gap-6 p-6 rounded-xl bg-slate-50 dark:bg-slate-700/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white font-semibold">
                 3
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Start Chatting</h4>
-                  <a href="/dashboard/chat/new">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  </a>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Chat with your knowledge base using AI to get instant answers
+              <div>
+                <h3 className="font-medium text-lg text-slate-900 dark:text-white mb-2">
+                  Chat With Your Knowledge
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300">
+                  Start a conversation with your knowledge base. Ask questions
+                  in natural language and get accurate answers based on your
+                  documents.
                 </p>
+                <a
+                  href="/dashboard/chat/new"
+                  className="mt-4 inline-flex items-center text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 text-sm font-medium"
+                >
+                  Start chatting
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
               </div>
             </div>
           </div>
