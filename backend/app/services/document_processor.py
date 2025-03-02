@@ -4,6 +4,7 @@ import hashlib
 import tempfile
 import traceback
 from datetime import datetime
+from app.db.session import SessionLocal
 from io import BytesIO
 from typing import Optional, List, Dict, Set
 from fastapi import UploadFile
@@ -235,13 +236,20 @@ async def process_document_background(
     file_name: str,
     kb_id: int,
     task_id: int,
-    db: Session,
+    db: Session = None,
     chunk_size: int = 1000,
     chunk_overlap: int = 200
 ) -> None:
     """Process document in background"""
     logger = logging.getLogger(__name__)
     logger.info(f"Starting background processing for task {task_id}, file: {file_name}")
+
+    # if we don't pass in db, create a new database session
+    if db is None:
+        db = SessionLocal()
+        should_close_db = True
+    else:
+        should_close_db = False
     
     task = db.query(ProcessingTask).get(task_id)
     if not task:
@@ -425,3 +433,7 @@ async def process_document_background(
             logger.info(f"Task {task_id}: Temporary file cleaned up after error")
         except:
             logger.warning(f"Task {task_id}: Failed to clean up temporary file after error")
+    finally:
+        # if we create the db session, we need to close it
+        if should_close_db and db:
+            db.close()

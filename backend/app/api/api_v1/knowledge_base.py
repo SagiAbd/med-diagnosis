@@ -368,7 +368,7 @@ async def process_kb_documents(
         try:
             # 创建处理任务
             task = ProcessingTask(
-                document_upload_id=upload_id,  # 使用正确的字段名
+                document_upload_id=upload_id,
                 knowledge_base_id=kb_id,
                 status="pending"
             )
@@ -382,7 +382,7 @@ async def process_kb_documents(
                 upload.file_name,
                 kb_id,
                 task.id,
-                db
+                None
             )
             tasks.append({
                 "upload_id": upload_id,
