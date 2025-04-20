@@ -21,11 +21,6 @@
     <a href="#development">Development</a> •
     <a href="#contributing">Contributing</a>
   </p>
-
-  <h4>
-    <span>English</span> |
-    <a href="README.zh-CN.md">简体中文</a>
-  </h4>
 </div>
 
 ## 📖 Introduction
