@@ -19,7 +19,8 @@
     <a href="#deployment-guide">Deployment</a> •
     <a href="#architecture">Architecture</a> •
     <a href="#development">Development</a> •
-    <a href="#contributing">Contributing</a>
+    <a href="#contributing">Contributing</a> •
+    <a href="https://deepwiki.com/rag-web-ui/rag-web-ui" target="_blank">DeepWiki</a>
   </p>
 </div>
 
