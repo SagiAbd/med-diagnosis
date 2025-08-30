@@ -63,6 +63,8 @@ cp .env.example .env
 ````env
 # LLM 配置
 CHAT_PROVIDER=ollama
+# 注意：host.docker.internal 仅在 Windows 和 macOS 系统中可用
+# 如果是 Linux 系统，需要调整 docker compose 文件（稍后补充上）
 OLLAMA_API_BASE=http://host.docker.internal:11434
 OLLAMA_MODEL=deepseek-r1:7b
 # Embedding 配置
