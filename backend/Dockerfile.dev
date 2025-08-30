@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
   default-libmysqlclient-dev \
   pkg-config \
   netcat-traditional \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file

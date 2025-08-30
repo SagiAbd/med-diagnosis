@@ -3,6 +3,8 @@ services:
     build: ./backend
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads

@@ -63,8 +63,7 @@ cp .env.example .env
 ````env
 # LLM 配置
 CHAT_PROVIDER=ollama
-# 注意：host.docker.internal 仅在 Windows 和 macOS 系统中可用
-# 如果是 Linux 系统，需要调整 docker compose 文件（稍后补充上）
+# 注意：这里在 docker-compose.yml 和 docker-compose.dev.yml 文件中都配置了 host.docker.internal （extra_hosts）
 OLLAMA_API_BASE=http://host.docker.internal:11434
 OLLAMA_MODEL=deepseek-r1:7b
 # Embedding 配置
@@ -112,15 +111,16 @@ docker compose up -d --build
 
 服务启动后，可以通过以下地址访问：
 
-- 前端界面：<http://localhost:3000>
-- API 文档：<http://localhost:8000/redoc>
-- MinIO 控制台：<http://localhost:9001>
+- **主要访问地址**：
+  - 前端界面：http://localhost
+  - API 文档：http://localhost/redoc
+  - API 接口：http://localhost/api
 
 ## 📚 使用指南
 
 ### 1. 创建知识库
 
-1. 访问 <http://localhost:3000>
+1. 访问 <http://localhost>
 2. 登录后，点击"创建知识库"
 3. 填写知识库名称和描述
 4. 上传文档，选择切片方式和大小
