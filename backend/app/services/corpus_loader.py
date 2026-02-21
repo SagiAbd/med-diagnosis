@@ -28,9 +28,41 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_KB_NAME = "Corpus"
 
+# Module-level lookup: protocol_id → full protocol text.
+# Populated at startup from corpus_full_text.jsonl; read-only afterwards.
+protocol_full_text_store: dict[str, str] = {}
+
+
+def _load_protocol_full_text() -> None:
+    """Load corpus_full_text.jsonl into protocol_full_text_store."""
+    global protocol_full_text_store
+    path = settings.CORPUS_FULL_TEXT_PATH
+    if not os.path.exists(path):
+        logger.info(f"corpus_full_text.jsonl not found at '{path}' — skipping full-text load")
+        return
+    store: dict[str, str] = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                pid = obj.get("protocol_id")
+                text = obj.get("text", "")
+                if pid:
+                    store[pid] = text
+            except json.JSONDecodeError:
+                continue
+    protocol_full_text_store = store
+    logger.info(f"Loaded {len(store)} full-text protocols from '{path}'")
+
 
 async def auto_ingest_corpus() -> None:
     """Full replace of SQL + Chroma from corpus.json on every startup."""
+
+    # Always load full-text lookup regardless of corpus.json presence.
+    _load_protocol_full_text()
 
     corpus_path = settings.CORPUS_JSON_PATH
     if not os.path.exists(corpus_path):

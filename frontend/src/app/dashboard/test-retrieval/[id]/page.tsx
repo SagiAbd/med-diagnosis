@@ -8,13 +8,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { api, ApiError } from "@/lib/api";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { Search, ArrowRight, Sparkles } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface KnowledgeBase {
   id: number;
@@ -22,14 +15,22 @@ interface KnowledgeBase {
   description: string;
 }
 
+interface DiagnosisItem {
+  rank: number;
+  diagnosis: string;
+  icd10_code: string;
+  explanation: string;
+}
+
+interface DiagnosisResponse {
+  diagnoses: DiagnosisItem[];
+}
+
 export default function TestPage({ params }: { params: { id: string } }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(
-    null
-  );
+  const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
+  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(null);
   const [loading, setLoading] = useState(false);
-  const [topK, setTopK] = useState("3");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -55,8 +56,8 @@ export default function TestPage({ params }: { params: { id: string } }) {
   const handleTest = async () => {
     if (!query) {
       toast({
-        title: "Please fill in all fields",
-        description: "Please enter query text",
+        title: "Введите текст",
+        description: "Пожалуйста, опишите симптомы пациента",
         variant: "destructive",
       });
       return;
@@ -64,17 +65,19 @@ export default function TestPage({ params }: { params: { id: string } }) {
 
     setLoading(true);
     try {
-      const data = await api.post("/api/knowledge-base/test-retrieval", {
-        query,
-        kb_id: parseInt(params.id),
-        top_k: parseInt(topK),
-      });
+      const data: DiagnosisResponse = await api.post(
+        "/api/knowledge-base/test-retrieval",
+        {
+          query,
+          kb_id: parseInt(params.id),
+        }
+      );
 
-      setResults(data.results);
+      setDiagnoses(data.diagnoses);
     } catch (error) {
       toast({
-        title: "测试失败",
-        description: error instanceof Error ? error.message : "未知错误",
+        title: "Ошибка",
+        description: error instanceof Error ? error.message : "Неизвестная ошибка",
         variant: "destructive",
       });
     } finally {
@@ -92,7 +95,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
         <div className="max-w-6xl mx-auto py-12 px-6">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
-              知识库检索测试
+              AI-диагностика
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
               <span className="font-semibold text-foreground">
@@ -111,7 +114,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
                     <Search className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <Input
-                    placeholder="输入您想要查询的内容..."
+                    placeholder="Опишите симптомы пациента (возраст, жалобы, анамнез)..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="pl-12 h-14 text-lg bg-background/50 border-primary/20 focus:border-primary"
@@ -127,59 +130,51 @@ export default function TestPage({ params }: { params: { id: string } }) {
                     {loading ? (
                       <span className="flex items-center">
                         <Sparkles className="animate-spin mr-2 h-4 w-4" />
-                        搜索中...
+                        Анализ...
                       </span>
                     ) : (
                       <span className="flex items-center">
-                        搜索
+                        Определить диагноз
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </span>
                     )}
                   </Button>
                 </div>
-
-                <Select value={topK} onValueChange={setTopK}>
-                  <SelectTrigger className="w-[140px] h-14 bg-background/50 border-primary/20">
-                    <SelectValue placeholder="返回数量" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Top 1</SelectItem>
-                    <SelectItem value="3">Top 3</SelectItem>
-                    <SelectItem value="5">Top 5</SelectItem>
-                    <SelectItem value="10">Top 10</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>
 
-          {results.length > 0 && (
+          {diagnoses.length > 0 && (
             <div className="mt-12 space-y-8">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
                 <Sparkles className="h-6 w-6 text-primary" />
-                搜索结果
+                Возможные диагнозы
               </h2>
               <div className="grid gap-6">
-                {results.map((result, index) => (
+                {diagnoses.map((item) => (
                   <Card
-                    key={index}
+                    key={item.rank}
                     className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-sm"
                   >
                     <CardContent className="p-8">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                          <span className="px-4 py-2 rounded-full bg-primary/10 text-primary font-medium">
-                            相关度: {(result.score * 100).toFixed(2)}%
-                          </span>
-                          <span className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Search className="h-4 w-4" />
-                            来源: {result.metadata.source}
-                          </span>
+                      <div className="flex items-start gap-6">
+                        <span className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 text-primary font-bold text-lg flex items-center justify-center">
+                          {item.rank}
+                        </span>
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-xl font-semibold">
+                              {item.diagnosis}
+                            </span>
+                            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-mono font-medium">
+                              {item.icd10_code}
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground leading-relaxed">
+                            {item.explanation}
+                          </p>
                         </div>
                       </div>
-                      <p className="text-lg leading-relaxed whitespace-pre-wrap prose prose-gray max-w-none">
-                        {result.content}
-                      </p>
                     </CardContent>
                   </Card>
                 ))}

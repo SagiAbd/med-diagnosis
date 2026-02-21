@@ -63,6 +63,8 @@ class Settings(BaseSettings):
 
     # Corpus auto-ingestion: place corpus.json at this path before starting the app
     CORPUS_JSON_PATH: str = os.getenv("CORPUS_JSON_PATH", "./data/corpus.json")
+    # Full-text lookup file for parent-document retrieval (no embeddings)
+    CORPUS_FULL_TEXT_PATH: str = os.getenv("CORPUS_FULL_TEXT_PATH", "./data/corpus_full_text.jsonl")
     # Default admin account created on first startup (used to own the auto-loaded KB)
     ADMIN_EMAIL:    str = os.getenv("ADMIN_EMAIL",    "admin@local")
     ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
@@ -96,6 +98,12 @@ class Settings(BaseSettings):
     KB_SEARCH_TOP_K: int = int(os.getenv("KB_SEARCH_TOP_K", "5"))
     KB_USE_RERANKER: bool = os.getenv("KB_USE_RERANKER", "false").lower() == "false"
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "10"))
+
+    # ─── Test-retrieval settings ─────────────────────────────────────────
+    # How many chunks the hybrid retriever fetches before deduplication
+    TEST_RETRIEVAL_CHUNK_K: int = int(os.getenv("TEST_RETRIEVAL_CHUNK_K", "10"))
+    # How many unique protocols (parents) are passed to the LLM — equals number of diagnoses returned
+    TEST_RETRIEVAL_PROTOCOLS_N: int = int(os.getenv("TEST_RETRIEVAL_PROTOCOLS_N", "3"))
 
     class Config:
         env_file = ".env"

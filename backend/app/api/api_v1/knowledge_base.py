@@ -1,4 +1,5 @@
 import hashlib
+import json
 from typing import List, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
 from sqlalchemy.orm import Session
@@ -28,6 +29,10 @@ from app.core.minio import get_minio_client
 from minio.error import MinioException
 from app.services.vector_store import VectorStoreFactory
 from app.services.embedding.embedding_factory import EmbeddingsFactory
+from app.services.retrieval import HybridRetriever, RetrievalConfig
+from app.services.llm.llm_factory import LLMFactory
+from app.services.corpus_loader import protocol_full_text_store
+from langchain_core.messages import HumanMessage
 
 router = APIRouter()
 
@@ -36,7 +41,17 @@ logger = logging.getLogger(__name__)
 class TestRetrievalRequest(BaseModel):
     query: str
     kb_id: int
-    top_k: int
+
+
+class DiagnosisItem(BaseModel):
+    rank: int
+    diagnosis: str
+    icd10_code: str
+    explanation: str
+
+
+class DiagnosisResponse(BaseModel):
+    diagnoses: List[DiagnosisItem]
 
 @router.post("", response_model=KnowledgeBaseResponse)
 def create_knowledge_base(
@@ -505,41 +520,105 @@ async def get_document(
 @router.post("/test-retrieval")
 async def test_retrieval(
     request: TestRetrievalRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Test retrieval quality for a given query against a knowledge base.
+    Diagnose a patient query using hybrid retrieval + full-protocol context + LLM.
+    Returns a ranked list of diagnoses with ICD-10 codes extracted from protocol text.
     """
     try:
         kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == request.kb_id).first()
-        
         if not kb:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Knowledge base {request.kb_id} not found",
-            )
-        
+            raise HTTPException(status_code=404, detail=f"Knowledge base {request.kb_id} not found")
+
+        # 1. Hybrid retrieval — fetch top TEST_RETRIEVAL_CHUNK_K chunks
         embeddings = EmbeddingsFactory.create()
-        
         vector_store = VectorStoreFactory.create(
             store_type=settings.VECTOR_STORE_TYPE,
             collection_name=settings.CHROMA_COLLECTION_NAME,
             embedding_function=embeddings,
         )
-        
-        results = vector_store.similarity_search_with_score(request.query, k=request.top_k)
-        
-        response = []
-        for doc, score in results:
-            response.append({
-                "content": doc.page_content,
-                "metadata": doc.metadata,
-                "score": float(score)
-            })
-            
-        return {"results": response}
-        
+        test_config = RetrievalConfig(
+            vector_weight=settings.KB_VECTOR_WEIGHT,
+            bm25_weight=settings.KB_BM25_WEIGHT,
+            candidate_k=settings.KB_CANDIDATE_K,
+            final_k=settings.TEST_RETRIEVAL_CHUNK_K,
+            use_reranker=settings.KB_USE_RERANKER,
+        )
+        retriever = HybridRetriever(vector_store)
+        chunks = retriever.retrieve(request.query, test_config)
+
+        # 2. Deduplicate by protocol_id — collect top N unique parent protocols
+        seen_protocol_ids: list[str] = []
+        for chunk in chunks:
+            pid = chunk.metadata.get("protocol_id")
+            if pid and pid not in seen_protocol_ids:
+                seen_protocol_ids.append(pid)
+            if len(seen_protocol_ids) >= settings.TEST_RETRIEVAL_PROTOCOLS_N:
+                break
+
+        if not seen_protocol_ids:
+            raise HTTPException(status_code=404, detail="No protocols found for the given query")
+
+        # 3. Fetch full protocol texts (fall back to chunk content if full text missing)
+        protocol_sections: list[str] = []
+        for i, pid in enumerate(seen_protocol_ids, 1):
+            full_text = protocol_full_text_store.get(pid, "")
+            if full_text:
+                protocol_sections.append(f"=== Протокол {i} (ID: {pid}) ===\n{full_text}")
+            else:
+                # Fallback: use the first matching chunk
+                for chunk in chunks:
+                    if chunk.metadata.get("protocol_id") == pid:
+                        protocol_sections.append(
+                            f"=== Протокол {i} (ID: {pid}) ===\n{chunk.page_content}"
+                        )
+                        break
+
+        context = "\n\n".join(protocol_sections)
+        n = len(seen_protocol_ids)
+
+        # 4. LLM call — structured JSON diagnosis
+        prompt = (
+            "Вы — медицинский ассистент. На основе анамнеза пациента и предоставленных "
+            "клинических протоколов Республики Казахстан определите наиболее вероятные диагнозы.\n\n"
+            f"Анамнез пациента:\n{request.query}\n\n"
+            f"Клинические протоколы:\n{context}\n\n"
+            "Верните ответ СТРОГО в формате JSON без каких-либо дополнительных комментариев:\n"
+            '{\n    "diagnoses": [\n'
+            '        {\n'
+            '            "rank": 1,\n'
+            '            "diagnosis": "название диагноза",\n'
+            '            "icd10_code": "код МКБ-10 из протокола",\n'
+            '            "explanation": "краткое обоснование на основе симптомов и протокола"\n'
+            "        }\n"
+            "    ]\n"
+            "}\n\n"
+            f"Верните ровно {n} диагноз(а/ов), ранжированных по убыванию вероятности. "
+            "Код МКБ-10 извлеките из текста соответствующего протокола."
+        )
+
+        llm = LLMFactory.create(temperature=0, streaming=False)
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+
+        # 5. Parse and validate with Pydantic
+        raw = response.content.strip()
+        if raw.startswith("```"):
+            parts = raw.split("```")
+            raw = parts[1] if len(parts) > 1 else raw
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        parsed = json.loads(raw)
+        validated = DiagnosisResponse(**parsed)
+
+        return validated.model_dump()
+
+    except HTTPException:
+        raise
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

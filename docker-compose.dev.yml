@@ -39,6 +39,7 @@ services:
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
+      - ./data/corpus_full_text.jsonl:/app/data/corpus_full_text.jsonl:ro
     networks:
       - app_network
     depends_on:

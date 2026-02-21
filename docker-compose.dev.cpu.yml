@@ -38,6 +38,7 @@ services:
         environment:
             - DEBUG=1
             - PYTHONUNBUFFERED=1
+            - CORPUS_FULL_TEXT_PATH=corpus/corpus_full_text.jsonl
         volumes:
             - ./backend:/app
             - ./uploads:/app/uploads
