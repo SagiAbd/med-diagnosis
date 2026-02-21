@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "RAG Web UI"  # Project name
+    PROJECT_NAME: str = "Medical Diagnosis"  # Project name
     VERSION: str = "0.1.0"  # Project version
     API_V1_STR: str = "/api"  # API version string
 
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     CHAT_PROVIDER: str = os.getenv("CHAT_PROVIDER", "openai")
 
     # Embeddings settings
-    EMBEDDINGS_PROVIDER: str = os.getenv("EMBEDDINGS_PROVIDER", "openai")
+    EMBEDDINGS_PROVIDER: str = os.getenv("EMBEDDINGS_PROVIDER", "tei")
 
     # MinIO settings
     MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
@@ -44,9 +44,9 @@ class Settings(BaseSettings):
     MINIO_BUCKET_NAME: str = os.getenv("MINIO_BUCKET_NAME", "documents")
 
     # OpenAI settings
-    OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your-openai-api-key-here")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4")
+    OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://hub.qazcode.ai")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-kDGHTZAOX-jQcN8VXxQucg")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "oss-120b")
     OPENAI_EMBEDDINGS_MODEL: str = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-ada-002")
 
     # DashScope settings
@@ -74,7 +74,12 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "deepseek-r1:7b"
     OLLAMA_EMBEDDINGS_MODEL: str = os.getenv(
         "OLLAMA_EMBEDDINGS_MODEL", "nomic-embed-text"
-    )  # Added this line
+    )
+
+    # TEI (Text Embeddings Inference) settings
+    TEI_API_BASE: str = os.getenv("TEI_API_BASE", "http://tei:80")
+    TEI_EMBEDDINGS_MODEL: str = os.getenv("TEI_EMBEDDINGS_MODEL", "google/embeddinggemma-300m")
+    HF_TOKEN: str = os.getenv("HF_TOKEN", "your-hf-token-here")
 
     class Config:
         env_file = ".env"
