@@ -71,7 +71,6 @@ def get_knowledge_bases(
     """
     knowledge_bases = (
         db.query(KnowledgeBase)
-        .filter(KnowledgeBase.user_id == current_user.id)
         .offset(skip)
         .limit(limit)
         .all()
@@ -96,16 +95,13 @@ def get_knowledge_base(
             joinedload(KnowledgeBase.documents)
             .joinedload(Document.processing_tasks)
         )
-        .filter(
-            KnowledgeBase.id == kb_id,
-            KnowledgeBase.user_id == current_user.id
-        )
+        .filter(KnowledgeBase.id == kb_id)
         .first()
     )
 
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    
+
     return kb
 
 @router.put("/{kb_id}", response_model=KnowledgeBaseResponse)
@@ -119,11 +115,8 @@ def update_knowledge_base(
     """
     Update knowledge base.
     """
-    kb = db.query(KnowledgeBase).filter(
-        KnowledgeBase.id == kb_id,
-        KnowledgeBase.user_id == current_user.id
-    ).first()
-    
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
@@ -148,17 +141,10 @@ async def delete_knowledge_base(
     """
     logger = logging.getLogger(__name__)
     
-    kb = (
-        db.query(KnowledgeBase)
-        .filter(
-            KnowledgeBase.id == kb_id,
-            KnowledgeBase.user_id == current_user.id
-        )
-        .first()
-    )
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    
+
     try:
         # Get all document file paths before deletion
         document_paths = [doc.file_path for doc in kb.documents]
@@ -223,13 +209,10 @@ async def upload_kb_documents(
     """
     Upload multiple documents to MinIO.
     """
-    kb = db.query(KnowledgeBase).filter(
-        KnowledgeBase.id == kb_id,
-        KnowledgeBase.user_id == current_user.id
-    ).first()
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    
+
     results = []
     for file in files:
         # 1. 计算文件 hash
@@ -306,19 +289,17 @@ async def preview_kb_documents(
     """
     results = {}
     for doc_id in preview_request.document_ids:
-        document = db.query(Document).join(KnowledgeBase).filter(
+        document = db.query(Document).filter(
             Document.id == doc_id,
             Document.knowledge_base_id == kb_id,
-            KnowledgeBase.user_id == current_user.id
         ).first()
-        
+
         if document:
             file_path = document.file_path
         else:
-            upload = db.query(DocumentUpload).join(KnowledgeBase).filter(
+            upload = db.query(DocumentUpload).filter(
                 DocumentUpload.id == doc_id,
                 DocumentUpload.knowledge_base_id == kb_id,
-                KnowledgeBase.user_id == current_user.id
             ).first()
             
             if not upload:
@@ -348,14 +329,11 @@ async def process_kb_documents(
     """
     start_time = time.time()
     
-    kb = db.query(KnowledgeBase).filter(
-        KnowledgeBase.id == kb_id,
-        KnowledgeBase.user_id == current_user.id
-    ).first()
-    
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-    
+
     task_info = []
     upload_ids = []
     
@@ -471,14 +449,11 @@ async def get_processing_tasks(
     """
     task_id_list = [int(id.strip()) for id in task_ids.split(",")]
     
-    kb = db.query(KnowledgeBase).filter(
-        KnowledgeBase.id == kb_id,
-        KnowledgeBase.user_id == current_user.id
-    ).first()
-    
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
-        
+
     tasks = (
         db.query(ProcessingTask)
         .options(
@@ -515,11 +490,9 @@ async def get_document(
     """
     document = (
         db.query(Document)
-        .join(KnowledgeBase)
         .filter(
             Document.id == doc_id,
             Document.knowledge_base_id == kb_id,
-            KnowledgeBase.user_id == current_user.id
         )
         .first()
     )
@@ -540,10 +513,7 @@ async def test_retrieval(
     Test retrieval quality for a given query against a knowledge base.
     """
     try:
-        kb = db.query(KnowledgeBase).filter(
-            KnowledgeBase.id == request.kb_id,
-            KnowledgeBase.user_id == current_user.id
-        ).first()
+        kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == request.kb_id).first()
         
         if not kb:
             raise HTTPException(

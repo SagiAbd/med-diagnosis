@@ -42,6 +42,7 @@ services:
             - ./backend:/app
             - ./uploads:/app/uploads
             - ./chroma_data:/app/data/chroma
+            - ./data/corpus.json:/app/data/corpus.json:ro
         networks:
             - app_network
         depends_on:

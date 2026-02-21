@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # OpenAI settings
     OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://hub.qazcode.ai")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-kDGHTZAOX-jQcN8VXxQucg")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "oss-120b")
     OPENAI_EMBEDDINGS_MODEL: str = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-ada-002")
 
