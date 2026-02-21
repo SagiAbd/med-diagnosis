@@ -41,11 +41,11 @@ services:
         volumes:
             - ./backend:/app
             - ./uploads:/app/uploads
+            - ./chroma_data:/app/data/chroma
         networks:
             - app_network
         depends_on:
             - db
-            - chromadb
             - minio
             - tei
             - ollama
@@ -149,15 +149,6 @@ services:
         networks:
             - app_network
 
-    chromadb:
-        image: chromadb/chroma:latest
-        ports:
-            - "8001:8000"
-        volumes:
-            - chroma_data:/chroma/chroma
-        networks:
-            - app_network
-
     minio:
         image: minio/minio:latest
         ports:
@@ -174,7 +165,6 @@ services:
 
 volumes:
     mysql_data:
-    chroma_data:
     minio_data:
     ollama_data:
 networks:

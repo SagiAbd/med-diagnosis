@@ -56,9 +56,8 @@ class Settings(BaseSettings):
     # Vector Store settings
     VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "chroma")
 
-    # Chroma DB settings
-    CHROMA_DB_HOST: str = os.getenv("CHROMA_DB_HOST", "chromadb")
-    CHROMA_DB_PORT: int = int(os.getenv("CHROMA_DB_PORT", "8000"))
+    # Chroma DB settings (local persistent storage)
+    CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", "./data/chroma")
 
     # Qdrant DB settings
     QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
