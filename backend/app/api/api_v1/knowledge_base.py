@@ -525,7 +525,7 @@ async def test_retrieval(
         
         vector_store = VectorStoreFactory.create(
             store_type=settings.VECTOR_STORE_TYPE,
-            collection_name=f"kb_{request.kb_id}",
+            collection_name=settings.CHROMA_COLLECTION_NAME,
             embedding_function=embeddings,
         )
         

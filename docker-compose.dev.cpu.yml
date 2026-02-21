@@ -42,7 +42,7 @@ services:
             - ./backend:/app
             - ./uploads:/app/uploads
             - ./chroma_data:/app/data/chroma
-            - ./data/corpus.json:/app/data/corpus.json:ro
+            - ./data:/app/corpus:ro
         networks:
             - app_network
         depends_on:
@@ -66,9 +66,11 @@ services:
         image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
         platform: linux/amd64
         container_name: tei
+        env_file:
+            - .env
         environment:
-            MODEL_ID: google/embeddinggemma-300m
-            HF_TOKEN: your-hf-token-here
+            MODEL_ID: ${TEI_EMBEDDINGS_MODEL:-google/embeddinggemma-300m}
+            HF_TOKEN: ${HF_TOKEN}
         # Qwen embeddings specific configuration:
         # --max-batch-tokens: Prevents OOM errors during model warmup on limited memory devices
         # --pooling: Embedding aggregation strategy  

@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # OpenAI settings
     OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://hub.qazcode.ai")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-kDGHTZAOX-jQcN8VXxQucg")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "oss-120b")
     OPENAI_EMBEDDINGS_MODEL: str = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-ada-002")
 
@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     # TEI (Text Embeddings Inference) settings
     TEI_API_BASE: str = os.getenv("TEI_API_BASE", "http://tei:80")
     TEI_EMBEDDINGS_MODEL: str = os.getenv("TEI_EMBEDDINGS_MODEL", "google/embeddinggemma-300m")
-    HF_TOKEN: str = os.getenv("HF_TOKEN", "your-hf-token-here")
+    HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 
     class Config:
         env_file = ".env"
