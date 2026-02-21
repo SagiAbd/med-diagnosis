@@ -13,6 +13,7 @@ from langchain.globals import set_verbose, set_debug
 from app.services.vector_store import VectorStoreFactory
 from app.services.embedding.embedding_factory import EmbeddingsFactory
 from app.services.llm.llm_factory import LLMFactory
+from app.services.retrieval import HybridRetriever, KB_CONFIG, create_reranker
 
 set_verbose(True)
 set_debug(True)
@@ -62,7 +63,9 @@ async def generate_response(
             db.commit()
             return
 
-        retriever = vector_store.as_retriever()
+        reranker = create_reranker()
+        hybrid = HybridRetriever(vector_store, reranker=reranker)
+        retriever = hybrid.as_langchain_retriever(KB_CONFIG)
         
         # Initialize the language model
         llm = LLMFactory.create()

@@ -89,6 +89,14 @@ class Settings(BaseSettings):
     TEI_EMBEDDINGS_MODEL: str = os.getenv("TEI_EMBEDDINGS_MODEL", "google/embeddinggemma-300m")
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 
+    # ─── Retrieval settings ──────────────────────────────────────────────
+    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "0.6"))
+    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "0.4"))
+    KB_CANDIDATE_K: int = int(os.getenv("KB_CANDIDATE_K", "20"))
+    KB_SEARCH_TOP_K: int = int(os.getenv("KB_SEARCH_TOP_K", "5"))
+    KB_USE_RERANKER: bool = os.getenv("KB_USE_RERANKER", "false").lower() == "false"
+    RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "10"))
+
     class Config:
         env_file = ".env"
 
