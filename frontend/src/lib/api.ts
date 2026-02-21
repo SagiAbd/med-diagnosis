@@ -50,14 +50,6 @@ export async function fetchApi(fullUrl: string, options: FetchOptions = {}) {
   try {
     const response = await fetch(fullUrl, config);
 
-    if (response.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
-      throw new ApiError(401, 'Unauthorized - Please log in again');
-    }
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(

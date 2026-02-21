@@ -31,54 +31,17 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def get_current_user(
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).first()
     if user is None:
-        raise credentials_exception
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user 
+        raise HTTPException(status_code=503, detail="No users in database")
+    return user
+
 
 def get_api_key_user(
     db: Session = Depends(get_db),
-    api_key: str = Security(api_key_header),
 ) -> User:
-    if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key header missing",
-        )
-    
-    api_key_obj = APIKeyService.get_api_key_by_key(db=db, key=api_key)
-    if not api_key_obj:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-    
-    if not api_key_obj.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive API key",
-        )
-    
-    APIKeyService.update_last_used(db=db, api_key=api_key_obj)
-    return api_key_obj.user 
+    user = db.query(User).first()
+    if user is None:
+        raise HTTPException(status_code=503, detail="No users in database")
+    return user

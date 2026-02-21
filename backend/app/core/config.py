@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # OpenAI settings
     OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://hub.qazcode.ai")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-kDGHTZAOX-jQcN8VXxQucg")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "oss-120b")
     OPENAI_EMBEDDINGS_MODEL: str = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-ada-002")
 
@@ -58,6 +58,15 @@ class Settings(BaseSettings):
 
     # Chroma DB settings (local persistent storage)
     CHROMA_DB_PATH: str = os.getenv("CHROMA_DB_PATH", "./data/chroma")
+    # Single fixed collection — all documents live here
+    CHROMA_COLLECTION_NAME: str = os.getenv("CHROMA_COLLECTION_NAME", "documents")
+
+    # Corpus auto-ingestion: place corpus.json at this path before starting the app
+    CORPUS_JSON_PATH: str = os.getenv("CORPUS_JSON_PATH", "./data/corpus.json")
+    # Default admin account created on first startup (used to own the auto-loaded KB)
+    ADMIN_EMAIL:    str = os.getenv("ADMIN_EMAIL",    "admin@local")
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "changeme")
 
     # Qdrant DB settings
     QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")

@@ -4,6 +4,7 @@ from app.api.api_v1.api import api_router
 from app.api.openapi.api import router as openapi_router
 from app.core.config import settings
 from app.core.minio import init_minio
+from app.services.corpus_loader import auto_ingest_corpus
 from app.startup.migarate import DatabaseMigrator
 from fastapi import FastAPI
 
@@ -30,6 +31,8 @@ async def startup_event():
     # Run database migrations
     migrator = DatabaseMigrator(settings.get_database_url)
     migrator.run_migrations()
+    # Auto-ingest corpus.json if present (idempotent)
+    await auto_ingest_corpus()
 
 
 @app.get("/")

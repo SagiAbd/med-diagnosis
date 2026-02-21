@@ -16,11 +16,10 @@ export default function DashboardLayout({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
+    if (!localStorage.getItem("token")) {
+      localStorage.setItem("token", "no-auth");
     }
-  }, [router]);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");

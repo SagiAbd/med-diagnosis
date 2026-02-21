@@ -9,7 +9,6 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, Prom
 from langchain_core.messages import HumanMessage, AIMessage
 from app.core.config import settings
 from app.models.chat import Message
-from app.models.knowledge import KnowledgeBase, Document
 from langchain.globals import set_verbose, set_debug
 from app.services.vector_store import VectorStoreFactory
 from app.services.embedding.embedding_factory import EmbeddingsFactory
@@ -44,40 +43,26 @@ async def generate_response(
         db.add(bot_message)
         db.commit()
         
-        # Get knowledge bases and their documents
-        knowledge_bases = (
-            db.query(KnowledgeBase)
-            .filter(KnowledgeBase.id.in_(knowledge_base_ids))
-            .all()
-        )
-        
-        # Initialize embeddings
+        # Use the single fixed collection for all queries
         embeddings = EmbeddingsFactory.create()
-        
-        # Create a vector store for each knowledge base
-        vector_stores = []
-        for kb in knowledge_bases:
-            documents = db.query(Document).filter(Document.knowledge_base_id == kb.id).all()
-            if documents:
-                # Use the factory to create the appropriate vector store
-                vector_store = VectorStoreFactory.create(
-                    store_type=settings.VECTOR_STORE_TYPE,  # 'chroma' or other supported types
-                    collection_name=f"kb_{kb.id}",
-                    embedding_function=embeddings,
-                )
-                print(f"Collection {f'kb_{kb.id}'} count:", vector_store._store._collection.count())
-                vector_stores.append(vector_store)
-        
-        if not vector_stores:
-            error_msg = "I don't have any knowledge base to help answer your question."
+        vector_store = VectorStoreFactory.create(
+            store_type=settings.VECTOR_STORE_TYPE,
+            collection_name=settings.CHROMA_COLLECTION_NAME,
+            embedding_function=embeddings,
+        )
+
+        count = vector_store._store._collection.count()
+        print(f"Collection '{settings.CHROMA_COLLECTION_NAME}' count:", count)
+
+        if count == 0:
+            error_msg = "The knowledge base is empty. Please ensure corpus.json is loaded on startup."
             yield f'0:"{error_msg}"\n'
             yield 'd:{"finishReason":"stop","usage":{"promptTokens":0,"completionTokens":0}}\n'
             bot_message.content = error_msg
             db.commit()
             return
-        
-        # Use first vector store for now
-        retriever = vector_stores[0].as_retriever()
+
+        retriever = vector_store.as_retriever()
         
         # Initialize the language model
         llm = LLMFactory.create()

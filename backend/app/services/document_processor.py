@@ -305,16 +305,6 @@ async def process_document_background(
             chunks = text_splitter.split_documents(documents)
             logger.info(f"Task {task_id}: Document split into {len(chunks)} chunks")
             
-            # 3. 创建向量存储
-            logger.info(f"Task {task_id}: Initializing vector store")
-            embeddings = EmbeddingsFactory.create()
-            
-            vector_store = VectorStoreFactory.create(
-                store_type=settings.VECTOR_STORE_TYPE,
-                collection_name=f"kb_{kb_id}",
-                embedding_function=embeddings,
-            )
-            
             # 4. 将临时文件移动到永久目录
             permanent_path = f"kb_{kb_id}/{file_name}"
             try:
@@ -386,13 +376,7 @@ async def process_document_background(
                     logger.info(f"Task {task_id}: Stored {i} chunks")
                     db.commit()  # 每 100 条提交一次，避免事务太大
             
-            # 7. 添加到向量存储
-            logger.info(f"Task {task_id}: Adding chunks to vector store")
-            vector_store.add_documents(chunks)
-            # 移除 persist() 调用，因为新版本不需要
-            logger.info(f"Task {task_id}: Chunks added to vector store")
-            
-            # 8. 更新任务状态
+            # 7. 更新任务状态
             logger.info(f"Task {task_id}: Updating task status to completed")
             task.status = "completed"
             task.document_id = document.id  # 更新为新创建的文档ID
