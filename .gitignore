@@ -61,3 +61,6 @@ backend/.env
 chroma_data
 data
 evaluation
+
+# Claude Code
+.claude/
