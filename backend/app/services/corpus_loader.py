@@ -54,7 +54,7 @@ def _load_protocol_full_text() -> None:
                     store[pid] = text
             except json.JSONDecodeError:
                 continue
-    protocol_full_text_store = store
+    protocol_full_text_store.update(store)  # mutate in-place so all importers see the data
     logger.info(f"Loaded {len(store)} full-text protocols from '{path}'")
 
 
@@ -140,7 +140,8 @@ async def auto_ingest_corpus() -> None:
             db.commit()
             db.refresh(doc)
 
-            for chunk in chunks:
+            BATCH = 500
+            for i, chunk in enumerate(chunks):
                 page_content = chunk.get("page_content", "")
                 chunk_id = hashlib.sha256(
                     f"{file_name}:{page_content}".encode()
@@ -166,6 +167,9 @@ async def auto_ingest_corpus() -> None:
                     )
                 )
                 total_chunks += 1
+                if (i + 1) % BATCH == 0:
+                    db.commit()
+                    logger.info(f"  committed {i + 1}/{len(chunks)} chunks for '{file_name}'")
 
             db.commit()
             logger.info(f"Inserted {len(chunks)} chunks for '{file_name}'")

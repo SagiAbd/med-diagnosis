@@ -60,3 +60,4 @@ frontend/.env
 backend/.env
 chroma_data
 data
+evaluation

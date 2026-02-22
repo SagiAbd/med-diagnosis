@@ -29,7 +29,7 @@ from app.core.minio import get_minio_client
 from minio.error import MinioException
 from app.services.vector_store import VectorStoreFactory
 from app.services.embedding.embedding_factory import EmbeddingsFactory
-from app.services.retrieval import HybridRetriever, RetrievalConfig
+from app.services.retrieval import HybridRetriever, RetrievalConfig, create_reranker
 from app.services.llm.llm_factory import LLMFactory
 from app.services.corpus_loader import protocol_full_text_store
 from langchain_core.messages import HumanMessage
@@ -38,9 +38,27 @@ router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
-class TestRetrievalRequest(BaseModel):
-    query: str
-    kb_id: int
+
+async def _llm_invoke_with_retry(llm, messages, max_retries: int = 4, base_delay: float = 2.0):
+    """Invoke LLM with exponential backoff on rate-limit (429) errors."""
+    for attempt in range(max_retries + 1):
+        try:
+            return await llm.ainvoke(messages)
+        except Exception as e:
+            err = str(e).lower()
+            is_rate_limit = "429" in err or "rate limit" in err or "too many requests" in err
+            if is_rate_limit and attempt < max_retries:
+                delay = base_delay * (2 ** attempt)  # 2, 4, 8, 16 s
+                logger.warning(
+                    f"LLM rate limit hit — retrying in {delay:.0f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                await asyncio.sleep(delay)
+            else:
+                raise
+
+class DiagnoseRequest(BaseModel):
+    symptoms: str
 
 
 class DiagnosisItem(BaseModel):
@@ -517,20 +535,23 @@ async def get_document(
     
     return document
 
-@router.post("/test-retrieval")
-async def test_retrieval(
-    request: TestRetrievalRequest,
+@router.post("/diagnose")
+async def diagnose(
+    request: DiagnoseRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Diagnose a patient query using hybrid retrieval + full-protocol context + LLM.
+    Public endpoint: diagnose a patient query using hybrid retrieval + full-protocol context + LLM.
+    Uses DEFAULT_KB_ID from config. No authentication required (for evaluation use).
     Returns a ranked list of diagnoses with ICD-10 codes extracted from protocol text.
     """
     try:
-        kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == request.kb_id).first()
+        kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == settings.DEFAULT_KB_ID).first()
         if not kb:
-            raise HTTPException(status_code=404, detail=f"Knowledge base {request.kb_id} not found")
+            # Fall back to the first available KB
+            kb = db.query(KnowledgeBase).first()
+        if not kb:
+            raise HTTPException(status_code=404, detail="No knowledge base found")
 
         # 1. Hybrid retrieval — fetch top TEST_RETRIEVAL_CHUNK_K chunks
         embeddings = EmbeddingsFactory.create()
@@ -546,8 +567,9 @@ async def test_retrieval(
             final_k=settings.TEST_RETRIEVAL_CHUNK_K,
             use_reranker=settings.KB_USE_RERANKER,
         )
-        retriever = HybridRetriever(vector_store)
-        chunks = retriever.retrieve(request.query, test_config)
+        reranker = create_reranker() if settings.KB_USE_RERANKER else None
+        retriever = HybridRetriever(vector_store, reranker=reranker)
+        chunks = retriever.retrieve(request.symptoms, test_config)
 
         # 2. Deduplicate by protocol_id — collect top N unique parent protocols
         seen_protocol_ids: list[str] = []
@@ -561,46 +583,81 @@ async def test_retrieval(
         if not seen_protocol_ids:
             raise HTTPException(status_code=404, detail="No protocols found for the given query")
 
+        # Log retrieved protocols so retrieval failures can be identified externally
+        chunks_per_protocol: dict[str, int] = {}
+        for chunk in chunks:
+            pid = chunk.metadata.get("protocol_id")
+            if pid:
+                chunks_per_protocol[pid] = chunks_per_protocol.get(pid, 0) + 1
+        logger.info(
+            f"[RETRIEVAL] query_len={len(request.symptoms)} | "
+            f"chunks_retrieved={len(chunks)} | "
+            f"unique_protocols={len(seen_protocol_ids)} | "
+            f"protocol_ids={seen_protocol_ids} | "
+            f"chunks_per_protocol={chunks_per_protocol}"
+        )
+
         # 3. Fetch full protocol texts (fall back to chunk content if full text missing)
+        max_chars = settings.DIAGNOSE_MAX_PROTOCOL_CHARS
         protocol_sections: list[str] = []
         for i, pid in enumerate(seen_protocol_ids, 1):
             full_text = protocol_full_text_store.get(pid, "")
             if full_text:
-                protocol_sections.append(f"=== Протокол {i} (ID: {pid}) ===\n{full_text}")
+                truncated = full_text[:max_chars]
+                if len(full_text) > max_chars:
+                    truncated += "\n[... текст протокола сокращён ...]"
+                protocol_sections.append(
+                    f"Протокол {i} (ID: {pid}):\n{'-' * 60}\n{truncated}"
+                )
             else:
                 # Fallback: use the first matching chunk
+                logger.warning(
+                    f"Full text not found for protocol '{pid}' — falling back to chunk content. "
+                    "Ensure corpus_full_text.jsonl is present at CORPUS_FULL_TEXT_PATH."
+                )
                 for chunk in chunks:
                     if chunk.metadata.get("protocol_id") == pid:
                         protocol_sections.append(
-                            f"=== Протокол {i} (ID: {pid}) ===\n{chunk.page_content}"
+                            f"Протокол {i} (ID: {pid}):\n{'-' * 60}\n{chunk.page_content}"
                         )
                         break
 
         context = "\n\n".join(protocol_sections)
-        n = len(seen_protocol_ids)
 
         # 4. LLM call — structured JSON diagnosis
         prompt = (
             "Вы — медицинский ассистент. На основе анамнеза пациента и предоставленных "
             "клинических протоколов Республики Казахстан определите наиболее вероятные диагнозы.\n\n"
-            f"Анамнез пациента:\n{request.query}\n\n"
+            f"Анамнез пациента:\n{request.symptoms}\n\n"
             f"Клинические протоколы:\n{context}\n\n"
+            "Инструкции:\n"
+            "- Используйте ТОЛЬКО протоколы, которые соответствуют симптомам пациента. "
+            "Игнорируйте протоколы, не относящиеся к данному случаю.\n"
+            "- Верните МИНИМУМ 3 диагноза, ранжированных по убыванию вероятности.\n"
+            "- Один протокол может быть источником нескольких диагнозов, "
+            "если в нём перечислены разные нозологии или коды МКБ-10.\n"
+            "- Код МКБ-10 ОБЯЗАТЕЛЬНО извлеките из текста соответствующего протокола дословно. "
+            "Если код МКБ-10 в протоколе отсутствует, пропустите этот протокол.\n"
+            "- Ранжируйте диагнозы по убыванию вероятности, учитывая следующие критерии "
+            "(в порядке убывания важности):\n"
+            "  1. Количество симптомов пациента, совпадающих с диагностическими критериями протокола\n"
+            "  2. Специфичность симптомов: характерные/редкие симптомы важнее общих\n"
+            "  3. Соответствие возраста, пола и анамнеза пациента профилю заболевания\n"
+            "  4. Наличие патогномоничных (однозначно указывающих) симптомов\n\n"
             "Верните ответ СТРОГО в формате JSON без каких-либо дополнительных комментариев:\n"
             '{\n    "diagnoses": [\n'
             '        {\n'
             '            "rank": 1,\n'
             '            "diagnosis": "название диагноза",\n'
-            '            "icd10_code": "код МКБ-10 из протокола",\n'
-            '            "explanation": "краткое обоснование на основе симптомов и протокола"\n'
+            '            "icd10_code": "код МКБ-10 из текста протокола",\n'
+            '            "explanation": "краткое обоснование: какие симптомы пациента совпадают с протоколом"\n'
             "        }\n"
             "    ]\n"
-            "}\n\n"
-            f"Верните ровно {n} диагноз(а/ов), ранжированных по убыванию вероятности. "
-            "Код МКБ-10 извлеките из текста соответствующего протокола."
+            "}"
         )
 
         llm = LLMFactory.create(temperature=0, streaming=False)
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        response = await _llm_invoke_with_retry(llm, [HumanMessage(content=prompt)])
 
         # 5. Parse and validate with Pydantic
         raw = response.content.strip()

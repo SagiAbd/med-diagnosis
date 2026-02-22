@@ -96,14 +96,18 @@ class Settings(BaseSettings):
     KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "0.4"))
     KB_CANDIDATE_K: int = int(os.getenv("KB_CANDIDATE_K", "20"))
     KB_SEARCH_TOP_K: int = int(os.getenv("KB_SEARCH_TOP_K", "5"))
-    KB_USE_RERANKER: bool = os.getenv("KB_USE_RERANKER", "false").lower() == "false"
+    KB_USE_RERANKER: bool = False  # Set True/False directly here to toggle reranker
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "10"))
 
-    # ─── Test-retrieval settings ─────────────────────────────────────────
+    # ─── Diagnose endpoint settings ──────────────────────────────────────
+    # Default knowledge base used by the public /diagnose endpoint
+    DEFAULT_KB_ID: int = int(os.getenv("DEFAULT_KB_ID", "1"))
     # How many chunks the hybrid retriever fetches before deduplication
-    TEST_RETRIEVAL_CHUNK_K: int = int(os.getenv("TEST_RETRIEVAL_CHUNK_K", "10"))
-    # How many unique protocols (parents) are passed to the LLM — equals number of diagnoses returned
-    TEST_RETRIEVAL_PROTOCOLS_N: int = int(os.getenv("TEST_RETRIEVAL_PROTOCOLS_N", "3"))
+    TEST_RETRIEVAL_CHUNK_K: int = int(os.getenv("TEST_RETRIEVAL_CHUNK_K", "20"))
+    # How many unique protocols (parents) are passed to the LLM
+    TEST_RETRIEVAL_PROTOCOLS_N: int = int(os.getenv("TEST_RETRIEVAL_PROTOCOLS_N", "6"))
+    # Max characters per protocol text sent to the LLM (~1500 tokens each, 4×6000 = ~6k tokens context)
+    DIAGNOSE_MAX_PROTOCOL_CHARS: int = int(os.getenv("DIAGNOSE_MAX_PROTOCOL_CHARS", "6000"))
 
     class Config:
         env_file = ".env"
