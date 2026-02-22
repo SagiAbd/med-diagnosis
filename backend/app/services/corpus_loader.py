@@ -101,6 +101,29 @@ async def auto_ingest_corpus() -> None:
     # Always load full-text lookup regardless of corpus.json presence.
     _load_protocol_full_text()
 
+    # ── Always ensure admin user exists (independent of corpus.json) ─────────
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == settings.ADMIN_EMAIL).first()
+        if user is None:
+            user = db.query(User).first()
+        if user is None:
+            user = User(
+                email=settings.ADMIN_EMAIL,
+                username=settings.ADMIN_USERNAME,
+                hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
+                is_active=True,
+                is_superuser=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"Created admin user '{settings.ADMIN_USERNAME}'")
+    except Exception:
+        logger.exception("Failed to ensure admin user exists")
+    finally:
+        db.close()
+
     corpus_path = settings.CORPUS_JSON_PATH
     if not os.path.exists(corpus_path):
         logger.info(f"corpus.json not found at '{corpus_path}' — skipping")
@@ -119,22 +142,10 @@ async def auto_ingest_corpus() -> None:
 
     db = SessionLocal()
     try:
-        # ── 1. Ensure admin user exists ──────────────────────────────────────
+        # ── 1. Get admin user for KB ownership ───────────────────────────────
         user = db.query(User).filter(User.email == settings.ADMIN_EMAIL).first()
         if user is None:
             user = db.query(User).first()
-        if user is None:
-            user = User(
-                email=settings.ADMIN_EMAIL,
-                username=settings.ADMIN_USERNAME,
-                hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
-                is_active=True,
-                is_superuser=True,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            logger.info(f"Created admin user '{settings.ADMIN_USERNAME}'")
 
         # ── 2. Wipe existing KB (cascades to documents + chunks) ─────────────
         existing_kb = db.query(KnowledgeBase).first()

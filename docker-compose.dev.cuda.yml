@@ -40,6 +40,7 @@ services:
         environment:
             - DEBUG=1
             - PYTHONUNBUFFERED=1
+            - CORPUS_JSON_PATH=corpus/corpus.json
             - CORPUS_FULL_TEXT_PATH=corpus/corpus_full_text.jsonl
         volumes:
             - ./backend:/app
