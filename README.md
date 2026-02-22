@@ -41,6 +41,13 @@ docker compose -f docker-compose.dev.cpu.yml logs -f tei
 - **UI:** http://localhost
 - **API docs:** http://localhost/redoc
 
+Default login credentials:
+
+| Field | Value |
+|---|---|
+| Username | `admin` |
+| Password | `changeme` |
+
 ## Usage
 
 ### UI (http://localhost)
