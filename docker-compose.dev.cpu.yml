@@ -94,7 +94,7 @@ services:
 
     frontend:
         build:
-            context: /Users/sagi/Data_Science/KazGisa/rgis-ai-assistant-frontend/rgis-ai-assistant-frontend
+            context: ./frontend
             dockerfile: Dockerfile.dev
         environment:
             - WATCHPACK_POLLING=true
@@ -104,7 +104,7 @@ services:
         ports:
             - "3000:3000"
         volumes:
-            - /Users/sagi/Data_Science/KazGisa/rgis-ai-assistant-frontend/rgis-ai-assistant-frontend:/app
+            - ./frontend:/app
             - /app/node_modules
         env_file:
             - .env
