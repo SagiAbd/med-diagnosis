@@ -52,7 +52,6 @@ services:
             - db
             - minio
             - tei
-            - ollama
         restart: on-failure
         deploy:
             restart_policy:
@@ -89,33 +88,6 @@ services:
                 condition: on-failure
                 delay: 5s
                 max_attempts: 3
-            resources:
-                reservations:
-                    devices:
-                        - driver: nvidia
-                          count: all
-                          capabilities: [ gpu ]
-        logging:
-            driver: "json-file"
-            options:
-                max-size: "10m"
-                max-file: "3"
-
-    ollama:
-        image: ollama/ollama:latest
-        ports:
-            - "11434:11434"
-        volumes:
-            - ollama_data:/root/.ollama
-        networks:
-            - app_network
-        restart: unless-stopped
-        healthcheck:
-            test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-        deploy:
             resources:
                 reservations:
                     devices:
@@ -185,7 +157,6 @@ services:
 volumes:
     mysql_data:
     minio_data:
-    ollama_data:
 networks:
     app_network:
         driver: bridge
