@@ -43,11 +43,14 @@ class LLMFactory:
                 streaming=streaming
             )
         elif provider.lower() == "gemini":
-            return ChatGoogleGenerativeAI(
+            kwargs = dict(
                 model=settings.GEMINI_MODEL,
                 google_api_key=settings.GOOGLE_API_KEY,
                 temperature=temperature,
                 streaming=streaming,
             )
+            if settings.GEMINI_THINKING_BUDGET >= 0:
+                kwargs["thinking_budget"] = settings.GEMINI_THINKING_BUDGET
+            return ChatGoogleGenerativeAI(**kwargs)
         else:
             raise ValueError(f"Unsupported LLM provider: {provider}")

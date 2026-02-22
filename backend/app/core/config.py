@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     # Google Gemini settings
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    # Thinking/reasoning budget: 0 = off, -1 = model default, N = token budget
+    GEMINI_THINKING_BUDGET: int = int(os.getenv("GEMINI_THINKING_BUDGET", "0"))
 
     # Ollama settings
     OLLAMA_API_BASE: str = "http://localhost:11434"
@@ -96,8 +98,8 @@ class Settings(BaseSettings):
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 
     # ─── Retrieval settings ──────────────────────────────────────────────
-    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "0.6"))
-    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "0.4"))
+    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "1"))
+    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "0"))
     KB_CANDIDATE_K: int = int(os.getenv("KB_CANDIDATE_K", "20"))
     KB_SEARCH_TOP_K: int = int(os.getenv("KB_SEARCH_TOP_K", "5"))
     KB_USE_RERANKER: bool = False  # Set True/False directly here to toggle reranker
@@ -109,9 +111,9 @@ class Settings(BaseSettings):
     # How many chunks the hybrid retriever fetches before deduplication
     TEST_RETRIEVAL_CHUNK_K: int = int(os.getenv("TEST_RETRIEVAL_CHUNK_K", "20"))
     # How many unique protocols (parents) are passed to the LLM
-    TEST_RETRIEVAL_PROTOCOLS_N: int = int(os.getenv("TEST_RETRIEVAL_PROTOCOLS_N", "6"))
+    TEST_RETRIEVAL_PROTOCOLS_N: int = int(os.getenv("TEST_RETRIEVAL_PROTOCOLS_N", "3"))
     # Max characters per protocol text sent to the LLM (~1500 tokens each, 4×6000 = ~6k tokens context)
-    DIAGNOSE_MAX_PROTOCOL_CHARS: int = int(os.getenv("DIAGNOSE_MAX_PROTOCOL_CHARS", "6000"))
+    DIAGNOSE_MAX_PROTOCOL_CHARS: int = int(os.getenv("DIAGNOSE_MAX_PROTOCOL_CHARS", "10000"))
 
     class Config:
         env_file = ".env"

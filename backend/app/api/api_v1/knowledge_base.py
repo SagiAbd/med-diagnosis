@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from typing import List, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
 from sqlalchemy.orm import Session
@@ -39,7 +40,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _llm_invoke_with_retry(llm, messages, max_retries: int = 4, base_delay: float = 2.0):
+async def _llm_invoke_with_retry(llm, messages, max_retries: int = 3, base_delay: float = 2.0):
     """Invoke LLM with exponential backoff on rate-limit (429) errors."""
     for attempt in range(max_retries + 1):
         try:
@@ -634,6 +635,8 @@ async def diagnose(
             "- Используйте ТОЛЬКО протоколы, которые соответствуют симптомам пациента. "
             "Игнорируйте протоколы, не относящиеся к данному случаю.\n"
             "- Верните МИНИМУМ 3 диагноза, ранжированных по убыванию вероятности.\n"
+            "- Каждый код МКБ-10 должен встречаться в списке не более одного раза — "
+            "не дублируйте один и тот же код с разными рангами.\n"
             "- Один протокол может быть источником нескольких диагнозов, "
             "если в нём перечислены разные нозологии или коды МКБ-10.\n"
             "- Код МКБ-10 ОБЯЗАТЕЛЬНО извлеките из текста соответствующего протокола дословно. "
@@ -667,6 +670,9 @@ async def diagnose(
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
+
+        # Strip trailing commas before } or ] (LLMs sometimes emit them)
+        raw = re.sub(r",\s*([}\]])", r"\1", raw)
 
         parsed = json.loads(raw)
         validated = DiagnosisResponse(**parsed)
