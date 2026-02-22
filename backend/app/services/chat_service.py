@@ -2,8 +2,7 @@ import json
 import base64
 from typing import List, AsyncGenerator
 from sqlalchemy.orm import Session
-from langchain_openai import ChatOpenAI
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains import create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
@@ -63,13 +62,13 @@ async def generate_response(
             db.commit()
             return
 
-        reranker = create_reranker()
+        reranker = create_reranker() if settings.KB_USE_RERANKER else None
         hybrid = HybridRetriever(vector_store, reranker=reranker)
         retriever = hybrid.as_langchain_retriever(KB_CONFIG)
-        
+
         # Initialize the language model
         llm = LLMFactory.create()
-        
+
         # Create contextualize question prompt
         contextualize_q_system_prompt = (
             "Given a chat history and the latest user question "
@@ -83,10 +82,10 @@ async def generate_response(
             MessagesPlaceholder("chat_history"),
             ("human", "{input}")
         ])
-        
+
         # Create history aware retriever
         history_aware_retriever = create_history_aware_retriever(
-            llm, 
+            llm,
             retriever,
             contextualize_q_prompt
         )
@@ -112,10 +111,8 @@ async def generate_response(
             ("human", "{input}")
         ])
 
-        # 修改 create_stuff_documents_chain 来自定义 context 格式
         document_prompt = PromptTemplate.from_template("\n\n- {page_content}\n\n")
 
-        # Create QA chain
         question_answer_chain = create_stuff_documents_chain(
             llm,
             qa_prompt,
@@ -123,56 +120,49 @@ async def generate_response(
             document_prompt=document_prompt
         )
 
-        # Create retrieval chain
-        rag_chain = create_retrieval_chain(
-            history_aware_retriever,
-            question_answer_chain,
-        )
-
-        # Generate response
+        # Build chat history
         chat_history = []
         for message in messages["messages"]:
             if message["role"] == "user":
                 chat_history.append(HumanMessage(content=message["content"]))
             elif message["role"] == "assistant":
-                # if include __LLM_RESPONSE__, only use the last part
                 if "__LLM_RESPONSE__" in message["content"]:
                     message["content"] = message["content"].split("__LLM_RESPONSE__")[-1]
                 chat_history.append(AIMessage(content=message["content"]))
 
-        full_response = ""
-        async for chunk in rag_chain.astream({
+        # Step 1: retrieve docs (blocking) — avoids KeyError: 'context' when streaming.
+        # create_retrieval_chain.astream passes chunks to combine_docs_chain before
+        # context is accumulated in the input dict, so we retrieve first then stream
+        # only the LLM step with context already present.
+        docs = await history_aware_retriever.ainvoke({
             "input": query,
-            "chat_history": chat_history
+            "chat_history": chat_history,
+        })
+
+        # Step 2: yield context to the frontend
+        full_response = ""
+        serializable_context = [
+            {
+                "page_content": doc.page_content.replace('"', '\\"'),
+                "metadata": doc.metadata,
+            }
+            for doc in docs
+        ]
+        escaped_context = json.dumps({"context": serializable_context})
+        base64_context = base64.b64encode(escaped_context.encode()).decode()
+        separator = "__LLM_RESPONSE__"
+        yield f'0:"{base64_context}{separator}"\n'
+        full_response += base64_context + separator
+
+        # Step 3: stream LLM answer with context fully present in input
+        async for chunk in question_answer_chain.astream({
+            "input": query,
+            "chat_history": chat_history,
+            "context": docs,
         }):
-            if "context" in chunk:
-                serializable_context = []
-                for context in chunk["context"]:
-                    serializable_doc = {
-                        "page_content": context.page_content.replace('"', '\\"'),
-                        "metadata": context.metadata,
-                    }
-                    serializable_context.append(serializable_doc)
-                
-                # 先替换引号，再序列化
-                escaped_context = json.dumps({
-                    "context": serializable_context
-                })
-
-                # 转成 base64
-                base64_context = base64.b64encode(escaped_context.encode()).decode()
-
-                # 连接符号
-                separator = "__LLM_RESPONSE__"
-                
-                yield f'0:"{base64_context}{separator}"\n'
-                full_response += base64_context + separator
-
-            if "answer" in chunk:
-                answer_chunk = chunk["answer"]
-                full_response += answer_chunk
-                # Escape quotes and use json.dumps to properly handle special characters
-                escaped_chunk = (answer_chunk
+            if chunk:
+                full_response += chunk
+                escaped_chunk = (chunk
                     .replace('"', '\\"')
                     .replace('\n', '\\n'))
                 yield f'0:"{escaped_chunk}"\n'
