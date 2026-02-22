@@ -27,4 +27,4 @@ langchain-ollama==0.2.3
 langchain-google-genai>=2.0.0
 docx2txt==0.8
 rank-bm25>=0.2.2
-flashrank>=0.2.0
+sentence-transformers>=3.0.0

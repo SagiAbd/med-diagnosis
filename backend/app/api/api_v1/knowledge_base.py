@@ -32,7 +32,7 @@ from app.services.vector_store import VectorStoreFactory
 from app.services.embedding.embedding_factory import EmbeddingsFactory
 from app.services.retrieval import HybridRetriever, RetrievalConfig, create_reranker
 from app.services.llm.llm_factory import LLMFactory
-from app.services.corpus_loader import protocol_full_text_store
+from app.services.corpus_loader import protocol_full_text_store, protocol_icd_codes_store
 import app.services.corpus_loader as _corpus_loader
 from langchain_core.messages import HumanMessage
 
@@ -67,6 +67,24 @@ def _get_diagnose_retriever() -> HybridRetriever:
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
+
+# ─── ICD-10 code validation helpers ─────────────────────────────────────────
+# Pre-compiled regex: letter + 2 digits + up to 2 optional dot-segments.
+_icd10_re = re.compile(r"^[A-Z][0-9]{2}(\.[0-9A-Z]{1,4}){0,2}$", re.IGNORECASE)
+
+# Cyrillic homoglyph → Latin translation table.
+# LLMs trained on Russian medical text occasionally output Cyrillic lookalikes
+# (e.g. Н47.2 where Н is U+041D, not Latin N).
+_CYRILLIC_TO_LATIN = str.maketrans("АВСЕНКМОРТХ", "ABCENKMOPTX")
+
+
+def _clean_icd10(raw: str) -> str:
+    """Normalise a raw ICD-10 code string before regex/context validation."""
+    s = raw.strip()
+    s = s.replace("*", "").replace("†", "")  # strip asterisk/dagger manifestation suffixes
+    s = re.sub(r"\s+", "", s)                 # remove any embedded whitespace
+    s = s.translate(_CYRILLIC_TO_LATIN)       # fix Cyrillic homoglyphs
+    return s
 
 
 async def _llm_invoke_with_retry(llm, messages, max_retries: int = 3, base_delay: float = 2.0):
@@ -629,12 +647,16 @@ async def diagnose(
         protocol_sections: list[str] = []
         for i, pid in enumerate(seen_protocol_ids, 1):
             full_text = protocol_full_text_store.get(pid, "")
+            icd_codes = protocol_icd_codes_store.get(pid, [])
+            icd_header = (
+                f"Коды МКБ-10 протокола: {', '.join(icd_codes)}\n" if icd_codes else ""
+            )
             if full_text:
                 truncated = full_text[:max_chars]
                 if len(full_text) > max_chars:
                     truncated += "\n[... текст протокола сокращён ...]"
                 protocol_sections.append(
-                    f"Протокол {i} (ID: {pid}):\n{'-' * 60}\n{truncated}"
+                    f"Протокол {i} (ID: {pid}):\n{icd_header}{'-' * 60}\n{truncated}"
                 )
             else:
                 # Fallback: use the first matching chunk
@@ -645,7 +667,7 @@ async def diagnose(
                 for chunk in chunks:
                     if chunk.metadata.get("protocol_id") == pid:
                         protocol_sections.append(
-                            f"Протокол {i} (ID: {pid}):\n{'-' * 60}\n{chunk.page_content}"
+                            f"Протокол {i} (ID: {pid}):\n{icd_header}{'-' * 60}\n{chunk.page_content}"
                         )
                         break
 
@@ -653,33 +675,48 @@ async def diagnose(
 
         # 4. LLM call — structured JSON diagnosis
         prompt = (
-            "Вы — медицинский ассистент. На основе анамнеза пациента и предоставленных "
-            "клинических протоколов Республики Казахстан определите наиболее вероятные диагнозы.\n\n"
+            "Вы — медицинский ассистент. Ваша задача: по анамнезу пациента и клиническим протоколам "
+            "Республики Казахстан определить НАИБОЛЕЕ ВЕРОЯТНЫЙ первичный диагноз.\n\n"
+            "Действуйте последовательно:\n"
+            "Шаг 1. Определите ГЛАВНЫЙ симптомокомплекс пациента — ключевые жалобы, которые точнее всего "
+            "указывают на конкретное заболевание.\n"
+            "Шаг 2. Найдите 1–2 протокола, которые НАИБОЛЕЕ ТОЧНО соответствуют главному "
+            "симптомокомплексу. Протоколы, не относящиеся к случаю, игнорируйте.\n"
+            "Шаг 3. Для выбранных протоколов возьмите коды МКБ-10 СТРОГО из списка "
+            "«Коды МКБ-10 протокола», указанного в начале каждого протокола. "
+            "Если список отсутствует — используйте только коды, дословно встречающиеся в тексте. "
+            "Диапазоны кодов (например Q20–Q28) и выдуманные коды — ЗАПРЕЩЕНЫ.\n\n"
+            "Правила ранжирования:\n"
+            "- Ранг 1 — ЕДИНСТВЕННЫЙ наиболее вероятный диагноз: тот код, который лучше всего объясняет "
+            "весь симптомокомплекс пациента. Если сомневаетесь между несколькими кодами, выберите тот, "
+            "который соответствует наиболее СПЕЦИФИЧНЫМ (редким, характерным) симптомам пациента.\n"
+            "- Ранг 2–3 — альтернативные диагнозы из других протоколов или другие коды того же протокола, "
+            "которые объясняют симптомы хуже, чем ранг 1.\n"
+            "- Критерии выбора (по убыванию важности): "
+            "патогномоничные симптомы > специфические симптомы > количество совпадающих симптомов > "
+            "соответствие возраста/пола/анамнеза.\n"
+            "- Один код МКБ-10 — только один раз в списке.\n\n"
             f"Анамнез пациента:\n{request.symptoms}\n\n"
             f"Клинические протоколы:\n{context}\n\n"
-            "Инструкции:\n"
-            "- Используйте ТОЛЬКО протоколы, которые соответствуют симптомам пациента. "
-            "Игнорируйте протоколы, не относящиеся к данному случаю.\n"
-            "- Верните МИНИМУМ 3 диагноза, ранжированных по убыванию вероятности.\n"
-            "- Каждый код МКБ-10 должен встречаться в списке не более одного раза — "
-            "не дублируйте один и тот же код с разными рангами.\n"
-            "- Один протокол может быть источником нескольких диагнозов, "
-            "если в нём перечислены разные нозологии или коды МКБ-10.\n"
-            "- Код МКБ-10 ОБЯЗАТЕЛЬНО извлеките из текста соответствующего протокола дословно. "
-            "Если код МКБ-10 в протоколе отсутствует, пропустите этот протокол.\n"
-            "- Ранжируйте диагнозы по убыванию вероятности, учитывая следующие критерии "
-            "(в порядке убывания важности):\n"
-            "  1. Количество симптомов пациента, совпадающих с диагностическими критериями протокола\n"
-            "  2. Специфичность симптомов: характерные/редкие симптомы важнее общих\n"
-            "  3. Соответствие возраста, пола и анамнеза пациента профилю заболевания\n"
-            "  4. Наличие патогномоничных (однозначно указывающих) симптомов\n\n"
-            "Верните ответ СТРОГО в формате JSON без каких-либо дополнительных комментариев:\n"
+            "Верните ровно 3 диагноза СТРОГО в формате JSON без комментариев:\n"
             '{\n    "diagnoses": [\n'
             '        {\n'
             '            "rank": 1,\n'
             '            "diagnosis": "название диагноза",\n'
-            '            "icd10_code": "код МКБ-10 из текста протокола",\n'
-            '            "explanation": "краткое обоснование: какие симптомы пациента совпадают с протоколом"\n'
+            '            "icd10_code": "код из списка МКБ-10 протокола",\n'
+            '            "explanation": "какие специфические симптомы пациента указывают именно на этот диагноз"\n'
+            '        },\n'
+            '        {\n'
+            '            "rank": 2,\n'
+            '            "diagnosis": "название диагноза",\n'
+            '            "icd10_code": "код из списка МКБ-10 протокола",\n'
+            '            "explanation": "краткое обоснование"\n'
+            '        },\n'
+            '        {\n'
+            '            "rank": 3,\n'
+            '            "diagnosis": "название диагноза",\n'
+            '            "icd10_code": "код из списка МКБ-10 протокола",\n'
+            '            "explanation": "краткое обоснование"\n'
             "        }\n"
             "    ]\n"
             "}"
@@ -701,6 +738,32 @@ async def diagnose(
         raw = re.sub(r",\s*([}\]])", r"\1", raw)
 
         parsed = json.loads(raw)
+
+        # 6. Filter invalid ICD-10 codes.
+        # Pre-clean: strip asterisk/dagger suffixes, spaces, Cyrillic homoglyphs.
+        # Format check: letter + 2 digits + optional dot-segments (e.g. J18.9, F65.4.0).
+        kept, dropped = [], []
+        for diag in parsed.get("diagnoses", []):
+            raw_code = diag.get("icd10_code", "")
+            code = _clean_icd10(raw_code)
+            diag["icd10_code"] = code  # store the normalised form
+            if not _icd10_re.match(code):
+                dropped.append((raw_code, f"invalid format → '{code}'"))
+                continue
+            kept.append(diag)
+
+        if dropped:
+            logger.warning(
+                f"[ICD10 FILTER] Dropped {len(dropped)} diagnosis(es): "
+                + ", ".join(f"{c!r} ({r})" for c, r in dropped)
+            )
+
+        # Keep only top 3 and re-number ranks sequentially
+        kept = kept[:3]
+        for i, diag in enumerate(kept, 1):
+            diag["rank"] = i
+        parsed["diagnoses"] = kept
+
         validated = DiagnosisResponse(**parsed)
 
         return validated.model_dump()

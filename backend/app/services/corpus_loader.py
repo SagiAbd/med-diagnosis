@@ -35,6 +35,10 @@ _DEFAULT_KB_NAME = "Corpus"
 # Populated at startup from corpus_full_text.jsonl; read-only afterwards.
 protocol_full_text_store: dict[str, str] = {}
 
+# Module-level lookup: protocol_id → list of ICD-10 codes (may be empty).
+# Populated at startup from corpus_full_text.jsonl alongside protocol_full_text_store.
+protocol_icd_codes_store: dict[str, list[str]] = {}
+
 # Pre-built BM25 retriever over the full protocol corpus.
 # Populated at startup by _load_protocol_full_text(); None until then.
 # Exposed so knowledge_base.py can pass it to HybridRetriever once at startup.
@@ -49,6 +53,7 @@ def _load_protocol_full_text() -> None:
         logger.info(f"corpus_full_text.jsonl not found at '{path}' — skipping full-text load")
         return
     store: dict[str, str] = {}
+    icd_store: dict[str, list[str]] = {}
     with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -58,11 +63,14 @@ def _load_protocol_full_text() -> None:
                 obj = json.loads(line)
                 pid = obj.get("protocol_id")
                 text = obj.get("text", "")
+                icd_codes = obj.get("icd_codes", [])
                 if pid:
                     store[pid] = text
+                    icd_store[pid] = icd_codes if isinstance(icd_codes, list) else []
             except json.JSONDecodeError:
                 continue
     protocol_full_text_store.update(store)  # mutate in-place so all importers see the data
+    protocol_icd_codes_store.update(icd_store)
     logger.info(f"Loaded {len(store)} full-text protocols from '{path}'")
 
     # Build corpus-level BM25 index from full protocol texts.

@@ -98,12 +98,17 @@ class Settings(BaseSettings):
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 
     # ─── Retrieval settings ──────────────────────────────────────────────
-    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "1.0"))
-    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "1.0"))
+    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "1"))
+    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "0"))
     KB_CANDIDATE_K: int = int(os.getenv("KB_CANDIDATE_K", "20"))
     KB_SEARCH_TOP_K: int = int(os.getenv("KB_SEARCH_TOP_K", "5"))
     KB_USE_RERANKER: bool = False  # Set True/False directly here to toggle reranker
     RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "10"))
+    # Cross-encoder model used for reranking.
+    # mmarco-mMiniLMv2-L12-H384-v1: multilingual (26 langs incl. Russian), ~117M params, fast on CPU.
+    # For GPU: BAAI/bge-reranker-v2-m3 (~568M params) gives better quality but is too slow on CPU.
+    # Override via RERANKER_MODEL env var.
+    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
 
     # ─── Diagnose endpoint settings ──────────────────────────────────────
     # Default knowledge base used by the public /diagnose endpoint
