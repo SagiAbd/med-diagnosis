@@ -12,7 +12,15 @@ AI-powered medical diagnosis system using RAG (Retrieval-Augmented Generation) o
 
 The `.env` file will be sent to you via Telegram. Place it in the project root directory.
 
-### 2. Start services
+### 2. Pull large files
+
+The corpus and vector database files are stored in Git LFS. After cloning, download them:
+
+```bash
+git lfs pull
+```
+
+### 4. Start services
 
 **CPU:**
 ```bash
@@ -24,7 +32,7 @@ docker compose -f docker-compose.dev.cpu.yml up -d --build
 docker compose -f docker-compose.dev.cuda.yml up -d --build
 ```
 
-### 3. Wait for startup
+### 5. Wait for startup
 
 After the containers start, TEI will automatically download the embedding model (`google/embeddinggemma-300m` by default). This may take a few minutes depending on your connection.
 
@@ -36,7 +44,7 @@ You can monitor progress with:
 docker compose -f docker-compose.dev.cpu.yml logs -f tei
 ```
 
-### 4. Access the app
+### 6. Access the app
 
 - **UI:** http://localhost
 - **API docs:** http://localhost/redoc

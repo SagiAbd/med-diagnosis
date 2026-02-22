@@ -132,7 +132,24 @@ async def auto_ingest_corpus() -> None:
     logger.info(f"Found corpus.json at '{corpus_path}', starting full re-ingestion…")
 
     with open(corpus_path, encoding="utf-8") as f:
-        chunks_data: list[dict] = json.load(f)
+        raw = f.read().strip()
+
+    if not raw:
+        logger.warning(
+            f"corpus.json at '{corpus_path}' is empty (possibly an undownloaded Git LFS pointer). "
+            "Run 'git lfs pull' to fetch the actual file. Skipping corpus ingestion."
+        )
+        return
+
+    try:
+        chunks_data: list[dict] = json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.warning(
+            f"corpus.json could not be parsed as JSON ({e}). "
+            "It may be a Git LFS pointer file — run 'git lfs pull' to download the actual data. "
+            "Skipping corpus ingestion."
+        )
+        return
 
     if not chunks_data:
         logger.warning("corpus.json is empty — skipping")
