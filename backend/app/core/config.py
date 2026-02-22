@@ -98,8 +98,8 @@ class Settings(BaseSettings):
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 
     # ─── Retrieval settings ──────────────────────────────────────────────
-    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "1"))
-    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "0"))
+    KB_VECTOR_WEIGHT: float = float(os.getenv("KB_VECTOR_WEIGHT", "1.0"))
+    KB_BM25_WEIGHT: float = float(os.getenv("KB_BM25_WEIGHT", "1.0"))
     KB_CANDIDATE_K: int = int(os.getenv("KB_CANDIDATE_K", "20"))
     KB_SEARCH_TOP_K: int = int(os.getenv("KB_SEARCH_TOP_K", "5"))
     KB_USE_RERANKER: bool = False  # Set True/False directly here to toggle reranker

@@ -33,7 +33,36 @@ from app.services.embedding.embedding_factory import EmbeddingsFactory
 from app.services.retrieval import HybridRetriever, RetrievalConfig, create_reranker
 from app.services.llm.llm_factory import LLMFactory
 from app.services.corpus_loader import protocol_full_text_store
+import app.services.corpus_loader as _corpus_loader
 from langchain_core.messages import HumanMessage
+
+# ─── Module-level singleton for the /diagnose retriever ─────────────
+# Initialised lazily on first request (after startup completes, so
+# protocol_bm25_retriever is already populated).
+_diagnose_retriever: HybridRetriever | None = None
+
+
+def _get_diagnose_retriever() -> HybridRetriever:
+    global _diagnose_retriever
+    if _diagnose_retriever is None:
+        embeddings = EmbeddingsFactory.create()
+        vector_store = VectorStoreFactory.create(
+            store_type=settings.VECTOR_STORE_TYPE,
+            collection_name=settings.CHROMA_COLLECTION_NAME,
+            embedding_function=embeddings,
+        )
+        reranker = create_reranker() if settings.KB_USE_RERANKER else None
+        _diagnose_retriever = HybridRetriever(
+            vector_store,
+            reranker=reranker,
+            prebuilt_bm25=_corpus_loader.protocol_bm25_retriever,
+        )
+        logger.info(
+            f"[RETRIEVER] Initialised singleton — "
+            f"bm25={'corpus' if _corpus_loader.protocol_bm25_retriever else 'fallback'}, "
+            f"reranker={'on' if reranker else 'off'}"
+        )
+    return _diagnose_retriever
 
 router = APIRouter()
 
@@ -555,12 +584,6 @@ async def diagnose(
             raise HTTPException(status_code=404, detail="No knowledge base found")
 
         # 1. Hybrid retrieval — fetch top TEST_RETRIEVAL_CHUNK_K chunks
-        embeddings = EmbeddingsFactory.create()
-        vector_store = VectorStoreFactory.create(
-            store_type=settings.VECTOR_STORE_TYPE,
-            collection_name=settings.CHROMA_COLLECTION_NAME,
-            embedding_function=embeddings,
-        )
         test_config = RetrievalConfig(
             vector_weight=settings.KB_VECTOR_WEIGHT,
             bm25_weight=settings.KB_BM25_WEIGHT,
@@ -568,18 +591,21 @@ async def diagnose(
             final_k=settings.TEST_RETRIEVAL_CHUNK_K,
             use_reranker=settings.KB_USE_RERANKER,
         )
-        reranker = create_reranker() if settings.KB_USE_RERANKER else None
-        retriever = HybridRetriever(vector_store, reranker=reranker)
-        chunks = retriever.retrieve(request.symptoms, test_config)
+        chunks = _get_diagnose_retriever().retrieve(request.symptoms, test_config)
 
-        # 2. Deduplicate by protocol_id — collect top N unique parent protocols
-        seen_protocol_ids: list[str] = []
+        # 2. Aggregate RRF scores per protocol → rank protocols → take top N.
+        # Multiple chunks from the same protocol sum their scores, so protocols
+        # with several relevant chunks rank above those with only one.
+        protocol_scores: dict[str, float] = {}
         for chunk in chunks:
             pid = chunk.metadata.get("protocol_id")
-            if pid and pid not in seen_protocol_ids:
-                seen_protocol_ids.append(pid)
-            if len(seen_protocol_ids) >= settings.TEST_RETRIEVAL_PROTOCOLS_N:
-                break
+            if pid:
+                protocol_scores[pid] = (
+                    protocol_scores.get(pid, 0.0) + chunk.metadata.get("rrf_score", 0.0)
+                )
+        seen_protocol_ids = sorted(
+            protocol_scores, key=lambda p: protocol_scores[p], reverse=True
+        )[: settings.TEST_RETRIEVAL_PROTOCOLS_N]
 
         if not seen_protocol_ids:
             raise HTTPException(status_code=404, detail="No protocols found for the given query")

@@ -18,6 +18,9 @@ import logging
 import os
 from collections import defaultdict
 
+from langchain_community.retrievers import BM25Retriever
+from langchain_core.documents import Document as LCDocument
+
 from app.core.config import settings
 from app.core.security import get_password_hash
 from app.db.session import SessionLocal
@@ -32,10 +35,15 @@ _DEFAULT_KB_NAME = "Corpus"
 # Populated at startup from corpus_full_text.jsonl; read-only afterwards.
 protocol_full_text_store: dict[str, str] = {}
 
+# Pre-built BM25 retriever over the full protocol corpus.
+# Populated at startup by _load_protocol_full_text(); None until then.
+# Exposed so knowledge_base.py can pass it to HybridRetriever once at startup.
+protocol_bm25_retriever = None  # BM25Retriever | None
+
 
 def _load_protocol_full_text() -> None:
-    """Load corpus_full_text.jsonl into protocol_full_text_store."""
-    global protocol_full_text_store
+    """Load corpus_full_text.jsonl into protocol_full_text_store and build BM25 index."""
+    global protocol_bm25_retriever
     path = settings.CORPUS_FULL_TEXT_PATH
     if not os.path.exists(path):
         logger.info(f"corpus_full_text.jsonl not found at '{path}' — skipping full-text load")
@@ -56,6 +64,27 @@ def _load_protocol_full_text() -> None:
                 continue
     protocol_full_text_store.update(store)  # mutate in-place so all importers see the data
     logger.info(f"Loaded {len(store)} full-text protocols from '{path}'")
+
+    # Build corpus-level BM25 index from full protocol texts.
+    # Imported here (not at module top) to avoid circular imports at load time.
+    if store:
+        try:
+            from app.services.retrieval.hybrid_retriever import russian_preprocess
+            bm25_docs = [
+                LCDocument(page_content=text, metadata={"protocol_id": pid})
+                for pid, text in store.items()
+            ]
+            bm25 = BM25Retriever.from_documents(
+                bm25_docs, preprocess_func=russian_preprocess
+            )
+            bm25.k = 50  # callers slice to their own candidate_k
+            protocol_bm25_retriever = bm25
+            logger.info(
+                f"Built BM25 corpus index over {len(bm25_docs)} protocols "
+                f"(k=50, Russian preprocessor)"
+            )
+        except Exception:
+            logger.exception("Failed to build BM25 corpus index — BM25 will fall back to vector candidates")
 
 
 async def auto_ingest_corpus() -> None:

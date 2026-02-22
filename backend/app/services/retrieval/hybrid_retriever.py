@@ -3,12 +3,16 @@
 All retrieval goes through this single class using KB_CONFIG, which is driven
 entirely by settings in config.py (env-overridable).
 
-Weighted RRF formula (standard k=60):
-    score(doc) = vector_weight / (k + rank_vec) + bm25_weight / (k + rank_bm25)
+Standard RRF formula (k=60, equal weights = 1.0 each):
+    score(doc) = 1/(k + rank_vec) + 1/(k + rank_bm25)
+
+Weights default to 1.0/1.0 (standard RRF). Override via KB_VECTOR_WEIGHT / KB_BM25_WEIGHT
+env vars only if you have calibration data justifying a different split.
 """
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -21,6 +25,18 @@ from pydantic import ConfigDict
 
 from app.core.config import settings
 from app.services.vector_store.base import BaseVectorStore
+
+
+# ─── Russian text preprocessor for BM25 ────────────────────────────
+
+def russian_preprocess(text: str) -> list[str]:
+    """Tokenize Russian/Latin text for BM25: lowercase, extract words ≥ 3 chars.
+
+    Splits on any non-alphanumeric boundary so Cyrillic inflections are kept as
+    whole tokens.  A length filter of 3 removes stop-word noise (и, в, на…).
+    Applied to both index documents and queries inside BM25Retriever.
+    """
+    return [t for t in re.findall(r"[а-яёa-z0-9]+", text.lower()) if len(t) >= 3]
 
 
 # ─── Per-tool retrieval profiles ────────────────────────────────────
@@ -80,9 +96,14 @@ class HybridRetriever:
         self,
         vector_store: BaseVectorStore,
         reranker=None,
+        prebuilt_bm25=None,
     ) -> None:
         self._vs = vector_store
         self._reranker = reranker
+        # Pre-built BM25Retriever over the full corpus (built once at startup).
+        # When set, avoids rebuilding the BM25 index on every request and gives
+        # full corpus coverage instead of just the vector candidates.
+        self._prebuilt_bm25 = prebuilt_bm25
         self.last_timing: Dict[str, float] = {}  # populated after each retrieve() call
 
     def retrieve(
@@ -105,19 +126,35 @@ class HybridRetriever:
         vector_docs: List[Document] = [doc for doc, _ in vs_results]
         t_vec = (time.perf_counter() - t0) * 1000
 
-        # 2. BM25 — over provided documents or fall back to vector candidates.
-        bm25_source = bm25_documents if bm25_documents is not None else vector_docs
+        # 2. BM25 — three modes (highest priority first):
+        #   a) Pre-built corpus-level index (full coverage, no rebuild cost)
+        #   b) Caller-supplied document list (partial coverage, rebuild each call)
+        #   c) Fall back to vector candidates (cheapest; no new docs)
         bm25_docs: List[Document] = []
         t_bm25 = 0.0
-        if bm25_source:
+        if self._prebuilt_bm25 is not None:
+            # Thread-safe: invoke() is read-only; we slice instead of mutating .k
             t0 = time.perf_counter()
             try:
-                bm25 = BM25Retriever.from_documents(bm25_source)
-                bm25.k = config.candidate_k
-                bm25_docs = bm25.invoke(query)
+                bm25_docs = self._prebuilt_bm25.invoke(query)[: config.candidate_k]
             except Exception:
-                bm25_docs = []  # degrade gracefully on empty / degenerate input
+                bm25_docs = []
             t_bm25 = (time.perf_counter() - t0) * 1000
+            bm25_src = "corpus"
+        else:
+            bm25_source = bm25_documents if bm25_documents is not None else vector_docs
+            if bm25_source:
+                t0 = time.perf_counter()
+                try:
+                    bm25 = BM25Retriever.from_documents(
+                        bm25_source, preprocess_func=russian_preprocess
+                    )
+                    bm25.k = config.candidate_k
+                    bm25_docs = bm25.invoke(query)
+                except Exception:
+                    bm25_docs = []  # degrade gracefully on empty / degenerate input
+                t_bm25 = (time.perf_counter() - t0) * 1000
+            bm25_src = "ext" if bm25_documents is not None else f"{len(vector_docs)}vc"
 
         # 3. Weighted RRF fusion.
         t0 = time.perf_counter()
@@ -139,7 +176,6 @@ class HybridRetriever:
             t_rerank = (time.perf_counter() - t0) * 1000
             rerank_applied = True
 
-        bm25_src = "ext" if bm25_documents is not None else f"{len(vector_docs)}vc"
         self.last_timing = {
             f"vector ({config.candidate_k * 2}→{len(vector_docs)} docs)": t_vec,
             f"BM25 (src={bm25_src}, {len(bm25_docs)} hits)": t_bm25,
