@@ -66,10 +66,9 @@ export default function TestPage({ params }: { params: { id: string } }) {
     setLoading(true);
     try {
       const data: DiagnosisResponse = await api.post(
-        "/api/knowledge-base/test-retrieval",
+        "/api/knowledge-base/diagnose",
         {
-          query,
-          kb_id: parseInt(params.id),
+          symptoms: query,
         }
       );
 
