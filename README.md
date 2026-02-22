@@ -12,6 +12,12 @@ AI-powered medical diagnosis system using RAG (Retrieval-Augmented Generation) o
 
 The `.env` file will be sent to you via Telegram. Place it in the project root directory.
 
+Then open it and update your API key:
+
+```
+OPENAI_API_KEY=your_key_here
+```
+
 ### 2. Pull large files
 
 The corpus and vector database files are stored in Git LFS. Install Git LFS if not already installed:
