@@ -3,6 +3,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 from langchain_deepseek import ChatDeepSeek
 from langchain_ollama import OllamaLLM
+from langchain_google_genai import ChatGoogleGenerativeAI
 from app.core.config import settings
 
 class LLMFactory:
@@ -35,15 +36,18 @@ class LLMFactory:
                 api_base=settings.DEEPSEEK_API_BASE
             )
         elif provider.lower() == "ollama":
-            # Initialize Ollama model
             return OllamaLLM(
                 model=settings.OLLAMA_MODEL,
                 base_url=settings.OLLAMA_API_BASE,
                 temperature=temperature,
                 streaming=streaming
             )
-        # Add more providers here as needed
-        # elif provider.lower() == "anthropic":
-        #     return ChatAnthropic(...)
+        elif provider.lower() == "gemini":
+            return ChatGoogleGenerativeAI(
+                model=settings.GEMINI_MODEL,
+                google_api_key=settings.GOOGLE_API_KEY,
+                temperature=temperature,
+                streaming=streaming,
+            )
         else:
             raise ValueError(f"Unsupported LLM provider: {provider}")
