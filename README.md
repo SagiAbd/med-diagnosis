@@ -14,7 +14,20 @@ The `.env` file will be sent to you via Telegram. Place it in the project root d
 
 ### 2. Pull large files
 
-The corpus and vector database files are stored in Git LFS. After cloning, download them:
+The corpus and vector database files are stored in Git LFS. Install Git LFS if not already installed:
+
+```bash
+# macOS
+brew install git-lfs
+
+# Ubuntu/Debian
+sudo apt install git-lfs
+
+# After installing
+git lfs install
+```
+
+Then pull the files:
 
 ```bash
 git lfs pull
