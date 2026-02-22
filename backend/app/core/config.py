@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     # mmarco-mMiniLMv2-L12-H384-v1: multilingual (26 langs incl. Russian), ~117M params, fast on CPU.
     # For GPU: BAAI/bge-reranker-v2-m3 (~568M params) gives better quality but is too slow on CPU.
     # Override via RERANKER_MODEL env var.
-    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
+    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "")
 
     # ─── Diagnose endpoint settings ──────────────────────────────────────
     # Default knowledge base used by the public /diagnose endpoint
