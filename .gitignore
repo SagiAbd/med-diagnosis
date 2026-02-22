@@ -58,8 +58,6 @@ backend/static/
 backend/media/
 frontend/.env
 backend/.env
-chroma_data
-data
 evaluation
 
 # Claude Code
